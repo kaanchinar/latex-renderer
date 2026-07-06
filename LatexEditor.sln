@@ -1,0 +1,48 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31903.59
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{0EC7186E-CB7E-4B79-927A-0E7E334A8C3B}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LatexEditor.Api", "src\LatexEditor.Api\LatexEditor.Api.csproj", "{F78B19A4-0250-4C9D-81E6-351C6E1A5CC6}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LatexEditor.Application", "src\LatexEditor.Application\LatexEditor.Application.csproj", "{3584DF63-6F85-4EFD-8B59-CD5F2BCFE5FC}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LatexEditor.Core", "src\LatexEditor.Core\LatexEditor.Core.csproj", "{F8EBAE98-D338-4F2D-A815-2B25AFD41016}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LatexEditor.Infrastructure", "src\LatexEditor.Infrastructure\LatexEditor.Infrastructure.csproj", "{98C063B4-526F-44A5-B96A-6B2A018F37B1}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{F78B19A4-0250-4C9D-81E6-351C6E1A5CC6}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{F78B19A4-0250-4C9D-81E6-351C6E1A5CC6}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{F78B19A4-0250-4C9D-81E6-351C6E1A5CC6}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{F78B19A4-0250-4C9D-81E6-351C6E1A5CC6}.Release|Any CPU.Build.0 = Release|Any CPU
+		{3584DF63-6F85-4EFD-8B59-CD5F2BCFE5FC}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{3584DF63-6F85-4EFD-8B59-CD5F2BCFE5FC}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{3584DF63-6F85-4EFD-8B59-CD5F2BCFE5FC}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{3584DF63-6F85-4EFD-8B59-CD5F2BCFE5FC}.Release|Any CPU.Build.0 = Release|Any CPU
+		{F8EBAE98-D338-4F2D-A815-2B25AFD41016}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{F8EBAE98-D338-4F2D-A815-2B25AFD41016}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{F8EBAE98-D338-4F2D-A815-2B25AFD41016}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{F8EBAE98-D338-4F2D-A815-2B25AFD41016}.Release|Any CPU.Build.0 = Release|Any CPU
+		{98C063B4-526F-44A5-B96A-6B2A018F37B1}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{98C063B4-526F-44A5-B96A-6B2A018F37B1}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{98C063B4-526F-44A5-B96A-6B2A018F37B1}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{98C063B4-526F-44A5-B96A-6B2A018F37B1}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{F78B19A4-0250-4C9D-81E6-351C6E1A5CC6} = {0EC7186E-CB7E-4B79-927A-0E7E334A8C3B}
+		{3584DF63-6F85-4EFD-8B59-CD5F2BCFE5FC} = {0EC7186E-CB7E-4B79-927A-0E7E334A8C3B}
+		{F8EBAE98-D338-4F2D-A815-2B25AFD41016} = {0EC7186E-CB7E-4B79-927A-0E7E334A8C3B}
+		{98C063B4-526F-44A5-B96A-6B2A018F37B1} = {0EC7186E-CB7E-4B79-927A-0E7E334A8C3B}
+	EndGlobalSection
+EndGlobal
