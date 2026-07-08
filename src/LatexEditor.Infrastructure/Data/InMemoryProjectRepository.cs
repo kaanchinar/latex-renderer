@@ -24,4 +24,20 @@ public class InMemoryProjectRepository : IProjectRepository
         _projects.Add(project);
         return Task.CompletedTask;
     }
+
+    public Task UpdateAsync(Project project)
+    {
+        var existingProject = _projects.FirstOrDefault(p => p.Id == project.Id && p.OwnerId == project.OwnerId);
+        if (existingProject is null) return Task.CompletedTask;
+        existingProject.Name = project.Name;
+        return Task.CompletedTask;
+    }
+
+    public Task RemoveAsync(Project project)
+    {
+        var existingProject = _projects.FirstOrDefault(p => p.Id == project.Id && p.OwnerId == project.OwnerId);
+        if (existingProject is null) return Task.CompletedTask;
+        _projects.Remove(existingProject);
+        return Task.CompletedTask;
+    }
 }

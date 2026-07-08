@@ -35,3 +35,5 @@ Thumbs.db
 # Publish
 publish/
 wwwroot/
+
+.env

@@ -1,0 +1,45 @@
+@baseUrl = http://localhost:5000
+@projectId = 11464294-bb54-4e80-a13a-6600921cd9e9
+@filePath = main.tex
+
+### Health check
+GET {{baseUrl}}/api/projects
+
+### Create a new project
+POST {{baseUrl}}/api/projects
+Content-Type: application/json
+
+{
+  "name": "Sample Thesis"
+}
+
+### Get project by id
+GET {{baseUrl}}/api/projects/{{projectId}}
+
+### Update project
+PUT {{baseUrl}}/api/projects/{{projectId}}
+Content-Type: application/json
+
+{
+  "name": "Updated Thesis Title"
+}
+
+### Delete project
+DELETE {{baseUrl}}/api/projects/{{projectId}}
+
+### List files in a project
+GET {{baseUrl}}/api/projects/{{projectId}}/files
+
+### Get a single file
+GET {{baseUrl}}/api/projects/{{projectId}}/files/{{filePath}}
+
+### Create or update a file
+PUT {{baseUrl}}/api/projects/{{projectId}}/files/{{filePath}}
+Content-Type: application/json
+
+{
+  "content": "\\documentclass{article}\n\\begin{document}\nHello, LaTeX!\n\\end{document}"
+}
+
+### Delete a file
+DELETE {{baseUrl}}/api/projects/{{projectId}}/files/{{filePath}}

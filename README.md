@@ -65,19 +65,24 @@ The project is in early development. The current focus is the `Project` domain a
   - `GET    /api/projects`
   - `POST   /api/projects`
   - `GET    /api/projects/{id:guid}`
-- Owner-scoped queries: every project operation is filtered by the current user's `OwnerId`. Authentication is not wired up yet, so the current user is temporarily hardcoded as `demo-user`.
+  - `PUT    /api/projects/{id:guid}`
+  - `DELETE /api/projects/{id:guid}`
+- `ProjectFilesController` endpoints:
+  - `GET    /api/projects/{id:guid}/files`
+  - `GET    /api/projects/{id:guid}/files/{path}`
+  - `PUT    /api/projects/{id:guid}/files/{path}`
+  - `DELETE /api/projects/{id:guid}/files/{path}`
+- Owner-scoped queries: every project and file operation is filtered by the current user's `OwnerId`. Authentication is not wired up yet, so the current user is temporarily hardcoded as `demo-user`.
+- Docker Compose setup with PostgreSQL, MinIO, and Redis for local development.
 
 ### Roadmap / TODO
 
-- `PUT    /api/projects/{id:guid}`
-- `DELETE /api/projects/{id:guid}`
 - PostgreSQL + Entity Framework Core persistence, replacing the in-memory store.
-- `ProjectFile` entity and `/api/projects/{id}/files` endpoints.
 - Tectonic integration and `ICompileQueue` / `ITectonicCompiler` abstractions.
 - `/api/projects/{id}/compile` and `/api/projects/{id}/jobs` endpoints.
 - SignalR `ProjectHub` for real-time compile events.
 - ASP.NET Core Identity, cookie authentication, and Google/GitHub OAuth.
-- Docker Compose setup with PostgreSQL and optional MinIO.
+- `IFileStorage` abstraction with local disk and S3-compatible implementations.
 - Structured logging, health checks, and metrics.
 - Integration tests using `WebApplicationFactory`.
 
@@ -125,15 +130,46 @@ Build the solution:
 dotnet build
 ```
 
-Run the API:
+Create a local environment file from the example and switch database host to `localhost`:
+
+```bash
+cp .env.example .env
+# Edit .env: change Host=postgres to Host=localhost in ConnectionStrings__DefaultConnection
+```
+
+Run the API locally:
 
 ```bash
 dotnet run --project src/LatexEditor.Api
 ```
 
-The API will be available at `http://localhost:5000` (or the configured `launchSettings` URL).
+The API will be available at `http://localhost:5257` (or the configured `launchSettings` URL). Credentials are read from `.env`, not from `appsettings` files.
 
-> Data is currently stored in memory and lost on restart. Database persistence is on the roadmap.
+### Docker Compose
+
+A `docker-compose.yml` is provided with PostgreSQL, MinIO, and Redis for local development. Make sure `.env` exists (it is loaded automatically by Docker Compose):
+
+```bash
+docker compose up --build
+```
+
+Services:
+
+| Service | URL | Notes |
+|---------|-----|-------|
+| App | http://localhost:5000 | ASP.NET Core API |
+| PostgreSQL | localhost:5432 | Database for metadata and Identity |
+| MinIO API | localhost:9000 | S3-compatible object storage |
+| MinIO Console | http://localhost:9001 | Web admin UI |
+| Redis | localhost:6379 | Cache / message broker future use |
+
+Default credentials are defined in `.env.example`. `docker-compose.yml` references them through environment variable substitution.
+
+> The app persists projects and files to PostgreSQL. MinIO and Redis containers are running and ready for future object storage and caching features.
+
+### Testing endpoints
+
+Use `requests.http` with an IDE HTTP client (Visual Studio, Rider, or VS Code REST Client extension) to exercise the endpoints. Update the `@projectId` and `@filePath` variables after creating a project.
 
 ## Design Notes
 

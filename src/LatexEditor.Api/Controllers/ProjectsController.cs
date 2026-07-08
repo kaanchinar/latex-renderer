@@ -8,7 +8,7 @@ namespace LatexEditor.Api.Controllers;
 [Route("api/projects")]
 public class ProjectsController(ProjectService service) : ControllerBase
 {
-    private static string CurrentUserId => "demo-user";
+    private string CurrentUserId => "demo-user";
 
     [HttpGet]
     public async Task<IActionResult> GetAll()
@@ -33,5 +33,21 @@ public class ProjectsController(ProjectService service) : ControllerBase
             return NotFound();
         }
         return Ok(project);
+    }
+
+    [HttpPut("{id:guid}")]
+    public async Task<IActionResult> Update(Guid id, UpdateProjectDto dto)
+    {
+        var updated = await service.UpdateAsync(id, dto, CurrentUserId);
+        if (updated is null) return NotFound();
+        return Ok(updated);
+    }
+
+    [HttpDelete("{id:guid}")]
+    public async Task<IActionResult> Delete(Guid id)
+    {
+        var deleted = await service.DeleteAsync(id, CurrentUserId);
+        if (!deleted) return NotFound();
+        return NoContent();
     }
 }
