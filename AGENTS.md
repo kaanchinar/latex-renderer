@@ -125,16 +125,19 @@ PUT    /api/projects/{projectId:guid}/files/{path}
 DELETE /api/projects/{projectId:guid}/files/{path}
 ```
 
+### Auth
+
+```text
+POST /api/auth/register
+POST /api/auth/login
+POST /api/auth/logout
+GET  /api/auth/external-login?provider=Google|GitHub
+GET  /api/auth/external-login-callback
+```
+
 ### Planned API surface (not implemented)
 
 ```text
-/api/auth
-  POST /register
-  POST /login
-  POST /logout
-  GET  /external-login?provider=Google|GitHub
-  POST /external-login-callback
-
 /api/projects/{id}/compile
   POST /
 
@@ -145,6 +148,40 @@ DELETE /api/projects/{projectId:guid}/files/{path}
 /hubs/projects
   SignalR hub for real-time compile events
 ```
+
+## Authentication Flow
+
+Authentication is built on ASP.NET Core Identity with cookie authentication. The API does not issue JWTs; it relies on an encrypted authentication cookie issued by `SignInManager`.
+
+### Registration and login
+
+1. `POST /api/auth/register` creates an `ApplicationUser` and immediately signs the user in via `SignInManager.SignInAsync`.
+2. `POST /api/auth/login` calls `SignInManager.PasswordSignInAsync`. On success, an authentication cookie is returned in the `Set-Cookie` header.
+3. `POST /api/auth/logout` calls `SignInManager.SignOutAsync` and invalidates the cookie.
+
+Both register and login return:
+
+```json
+{ "id": "<user-guid>", "email": "user@example.com" }
+```
+
+### External login (Google/GitHub)
+
+1. `GET /api/auth/external-login?provider=Google` triggers a `Challenge` to the selected provider.
+2. The provider redirects the user to its own login page.
+3. After successful login, the provider redirects back to `/api/auth/external-login-callback`.
+4. The callback reads the external login info:
+   - If the external login is already linked to a local user, the user is signed in.
+   - If not, a new `ApplicationUser` is created with the email from the provider, the external login is linked, and the user is signed in.
+5. On success, the response is a 302 redirect to `returnUrl` (default `/`).
+
+OAuth providers are only registered at startup when the corresponding `Authentication:*:ClientId` and `Authentication:*:ClientSecret` environment variables are set. Otherwise, only email/password login is available.
+
+### Securing endpoints
+
+- `[Authorize]` is applied to `ProjectsController` and `ProjectFilesController`.
+- `CurrentUserId` is read from `User.FindFirstValue(ClaimTypes.NameIdentifier)`.
+- `ConfigureApplicationCookie` overrides `OnRedirectToLogin` and `OnRedirectToAccessDenied` so that API calls receive `401`/`403` instead of 302 redirects.
 
 ## Code Style Guidelines
 
