@@ -1,14 +1,17 @@
 using LatexEditor.Application.DTOs;
 using LatexEditor.Application.Services;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using System.Security.Claims;
 
 namespace LatexEditor.Api.Controllers;
 
 [ApiController]
+[Authorize]
 [Route("api/projects")]
 public class ProjectsController(ProjectService service) : ControllerBase
 {
-    private string CurrentUserId => "demo-user";
+    private string CurrentUserId => User.FindFirstValue(ClaimTypes.NameIdentifier)!;
 
     [HttpGet]
     public async Task<IActionResult> GetAll()

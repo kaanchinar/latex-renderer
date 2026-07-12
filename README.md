@@ -59,8 +59,8 @@ The project is in early development. The current focus is the `Project` domain a
 
 - Solution and layered project skeleton.
 - `Project` entity with `Id`, `Name`, `OwnerId`, and `CreatedAt`.
-- `IProjectRepository` abstraction with an in-memory implementation for early iteration.
-- `ProjectService` with validation and mapping to `ProjectDto`.
+- `IProjectRepository` and `IProjectFileRepository` abstractions with EF Core PostgreSQL implementations.
+- `ProjectService` and `ProjectFileService` with validation and mapping to DTOs.
 - `ProjectsController` endpoints:
   - `GET    /api/projects`
   - `POST   /api/projects`
@@ -72,16 +72,15 @@ The project is in early development. The current focus is the `Project` domain a
   - `GET    /api/projects/{id:guid}/files/{path}`
   - `PUT    /api/projects/{id:guid}/files/{path}`
   - `DELETE /api/projects/{id:guid}/files/{path}`
-- Owner-scoped queries: every project and file operation is filtered by the current user's `OwnerId`. Authentication is not wired up yet, so the current user is temporarily hardcoded as `demo-user`.
+- ASP.NET Core Identity with cookie authentication and Google/GitHub OAuth hooks.
+- Owner-scoped queries: every project and file operation is filtered by the authenticated user's ID from `User.FindFirstValue`.
 - Docker Compose setup with PostgreSQL, MinIO, and Redis for local development.
 
 ### Roadmap / TODO
 
-- PostgreSQL + Entity Framework Core persistence, replacing the in-memory store.
 - Tectonic integration and `ICompileQueue` / `ITectonicCompiler` abstractions.
 - `/api/projects/{id}/compile` and `/api/projects/{id}/jobs` endpoints.
 - SignalR `ProjectHub` for real-time compile events.
-- ASP.NET Core Identity, cookie authentication, and Google/GitHub OAuth.
 - `IFileStorage` abstraction with local disk and S3-compatible implementations.
 - Structured logging, health checks, and metrics.
 - Integration tests using `WebApplicationFactory`.

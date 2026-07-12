@@ -13,6 +13,10 @@ services:
       Minio__AccessKey: ${Minio__AccessKey}
       Minio__SecretKey: ${Minio__SecretKey}
       Redis__ConnectionString: ${Redis__ConnectionString}
+      Authentication__Google__ClientId: ${Authentication__Google__ClientId}
+      Authentication__Google__ClientSecret: ${Authentication__Google__ClientSecret}
+      Authentication__GitHub__ClientId: ${Authentication__GitHub__ClientId}
+      Authentication__GitHub__ClientSecret: ${Authentication__GitHub__ClientSecret}
     depends_on:
       postgres:
         condition: service_healthy

@@ -6,7 +6,7 @@ This document is written for AI coding agents working on the Latex Renderer proj
 
 Latex Renderer is a self-hosted, backend-focused platform for editing and compiling LaTeX documents in real time. It is an ASP.NET Core Web API organized around Clean Architecture principles.
 
-The current implementation is an early skeleton focused on the `Project` domain and its REST API surface. Projects and project files are persisted to PostgreSQL via Entity Framework Core. Authentication, real-time compile preview, the LaTeX compile pipeline, object storage integration, and observability are planned but not yet implemented. Docker Compose infrastructure is available for local development.
+The current implementation is an early skeleton focused on the `Project` domain and its REST API surface. Projects and project files are persisted to PostgreSQL via Entity Framework Core. Authentication is implemented with ASP.NET Core Identity and cookie auth; Google and GitHub OAuth providers are wired in but only activate when client credentials are configured. Real-time compile preview, the LaTeX compile pipeline, object storage integration, and observability are planned but not yet implemented.
 
 Repository root: `/home/kaan/Projects/latex-renderer`
 Solution file: `LatexEditor.sln`
@@ -19,7 +19,7 @@ Solution file: `LatexEditor.sln`
 | Language | C# 12 | Using implicit usings and nullable reference types. |
 | Architecture | Clean Architecture | Four layers: `Api`, `Application`, `Core`, `Infrastructure`. |
 | Persistence | PostgreSQL + EF Core | `AppDbContext`, `ProjectRepository`, and `ProjectFileRepository`. Migrations are applied at startup in development. In-memory repositories remain in the codebase for reference but are not registered. |
-| Auth | Hardcoded demo user | Controllers return `CurrentUserId = "demo-user"`. ASP.NET Core Identity + OAuth is planned. |
+| Auth | ASP.NET Core Identity + cookie auth | `ApplicationUser`, `AppDbContext` integration, `/api/auth` endpoints. Google/GitHub OAuth activate when `Authentication:*:ClientId/ClientSecret` env vars are set. |
 | Real-time | Not implemented | SignalR `ProjectHub` is on the roadmap. |
 | LaTeX engine | Not implemented | Tectonic integration is planned. |
 | Object storage | Not integrated | File content is stored in PostgreSQL alongside metadata. A MinIO container is provided for local development, but the application does not use S3-compatible storage yet. |
@@ -71,7 +71,7 @@ Only `LatexEditor.Infrastructure` currently references external packages:
 - `Npgsql.EntityFrameworkCore.PostgreSQL` 8.0.0
 - `Microsoft.EntityFrameworkCore.Design` 8.0.0
 
-These are present for the planned PostgreSQL/Identity migration but are not actively used in the current code.
+These packages are actively used for PostgreSQL persistence and ASP.NET Core Identity.
 
 ## Build and Run Commands
 
@@ -104,7 +104,7 @@ This starts the API on `http://localhost:5000` with PostgreSQL on `5432`, MinIO 
 
 ## Current API Surface
 
-All endpoints are owner-scoped against the hardcoded `demo-user`. Authentication and authorization are not enforced.
+All endpoints except `/api/auth` require authentication via cookie. Requests are owner-scoped against the authenticated user's ID.
 
 ### Projects
 
@@ -230,14 +230,14 @@ File content is currently stored in memory alongside metadata. The `StorageKey` 
 
 ## Security Considerations
 
-- There is no authentication or authorization. Every controller uses `CurrentUserId => "demo-user"`.
-- Do not assume user isolation is enforced by middleware; it is only enforced by repository query parameters.
+- Authentication is enforced via `[Authorize]` on project/file controllers. `CurrentUserId` is read from the authenticated user's `NameIdentifier` claim.
+- User isolation is enforced both by middleware (authentication) and by repository query parameters (ownerId filtering).
 - LaTeX compilation is not implemented yet. When it is added, the project design requires:
   - Tectonic shell escape disabled.
   - Hard timeouts and cancellation tokens on compile jobs.
   - Per-job temporary directories cleaned in a `finally` block.
   - Verification that generated output is a PDF before storing.
-- Identity tables should be isolated in a dedicated `identity` PostgreSQL schema when Identity is added.
+- Identity tables are isolated in a dedicated `identity` PostgreSQL schema; application tables remain in the default schema.
 
 ## Development Notes
 
@@ -251,9 +251,7 @@ File content is currently stored in memory alongside metadata. The `StorageKey` 
 
 The project is intentionally a backend skeleton right now. The next likely areas of work are:
 
-1. PostgreSQL + Entity Framework Core persistence, replacing in-memory repositories.
-2. ASP.NET Core Identity with cookie auth and Google/GitHub OAuth.
-3. `ProjectFile` storage abstraction (`IFileStorage`) with local disk and S3-compatible implementations.
+1. `ProjectFile` storage abstraction (`IFileStorage`) with local disk and S3-compatible implementations.
 4. Tectonic integration and the compile pipeline (`ICompileQueue`, `ITectonicCompiler`, background service).
 5. SignalR `ProjectHub` for real-time compile events.
 6. Unit and integration test projects.
