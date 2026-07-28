@@ -37,16 +37,22 @@ public class S3FileStorage : IFileStorage
             : Protocol.HTTPS;
 
         var credentials = new BasicAWSCredentials(opts.S3AccessKey, opts.S3SecretKey);
-        _client = new AmazonS3Client(credentials, new AmazonS3Config
+        _client = new AmazonS3Client(credentials, CreateConfig(opts.S3ServiceUrl, opts.S3Region));
+        _presignClient = new AmazonS3Client(credentials, CreateConfig(
+            string.IsNullOrWhiteSpace(opts.S3PublicUrl) ? opts.S3ServiceUrl : opts.S3PublicUrl,
+            opts.S3Region));
+    }
+
+    private static AmazonS3Config CreateConfig(string serviceUrl, string region)
+    {
+        var config = new AmazonS3Config
         {
-            ServiceURL = opts.S3ServiceUrl,
+            ServiceURL = serviceUrl,
             ForcePathStyle = true
-        });
-        _presignClient = new AmazonS3Client(credentials, new AmazonS3Config
-        {
-            ServiceURL = string.IsNullOrWhiteSpace(opts.S3PublicUrl) ? opts.S3ServiceUrl : opts.S3PublicUrl,
-            ForcePathStyle = true
-        });
+        };
+        if (!string.IsNullOrWhiteSpace(region))
+            config.AuthenticationRegion = region;
+        return config;
     }
 
     /// <inheritdoc />

@@ -28,6 +28,12 @@ public class StorageOptions
     /// </summary>
     public string S3PublicUrl { get; set; } = string.Empty;
 
+    /// <summary>
+    /// Signing region for S3 requests. Set to <c>auto</c> for Cloudflare R2.
+    /// Leave empty to use the SDK default (<c>us-east-1</c>), which MinIO accepts.
+    /// </summary>
+    public string S3Region { get; set; } = string.Empty;
+
     /// <summary>S3 access key. Load from environment variables, never commit to source control.</summary>
     public string S3AccessKey { get; set; } = string.Empty;
 
