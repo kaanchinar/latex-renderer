@@ -199,6 +199,30 @@ The project uses standard ASP.NET Core conventions:
 
 There is no `.editorconfig` file currently. If you add one, align it with the existing C# style above.
 
+## Development Rules
+
+These rules apply to all changes made by agents and humans:
+
+### Atomic commits
+
+- Every commit is a single, self-contained logical change (one feature, one fix, one chore).
+- A commit must leave the repo in a working state: `dotnet build` succeeds and all tests pass.
+- Unrelated changes are never mixed into a feature commit; commit them separately.
+- Commit messages follow the existing history style: short imperative summary (e.g. `Add file storage abstraction with local disk and S3 implementations`).
+
+### Tests
+
+- Every new feature or behavior change ships with tests in the same commit.
+- Test projects live under `tests/`, one project per layer: `LatexEditor.<Layer>.Tests`.
+- Tests use xUnit. Hand-rolled fakes are preferred for simple contracts; a mocking library may be introduced when fakes become unwieldy.
+- Run the full suite with `dotnet test` before committing.
+
+### XML documentation
+
+- XML doc comments are required on contracts: interfaces in `LatexEditor.Core` and services in `LatexEditor.Application`. Implementations use `<inheritdoc />`.
+- `LatexEditor.Api` controllers are documented so Swagger output is meaningful.
+- DTOs and entities are self-describing and intentionally not documented.
+
 ## Testing Instructions
 
 There are no test projects in the repository yet. The planned testing strategy includes:
