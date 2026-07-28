@@ -21,6 +21,13 @@ public class StorageOptions
     /// <summary>S3 service URL (e.g. <c>http://minio:9000</c> or the R2 endpoint).</summary>
     public string S3ServiceUrl { get; set; } = string.Empty;
 
+    /// <summary>
+    /// Public base URL used when generating presigned URLs, for cases where the
+    /// internal <see cref="S3ServiceUrl"/> is not reachable by clients (e.g. MinIO
+    /// inside a Docker network). Falls back to <see cref="S3ServiceUrl"/> when empty.
+    /// </summary>
+    public string S3PublicUrl { get; set; } = string.Empty;
+
     /// <summary>S3 access key. Load from environment variables, never commit to source control.</summary>
     public string S3AccessKey { get; set; } = string.Empty;
 

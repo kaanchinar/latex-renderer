@@ -15,6 +15,7 @@ namespace LatexEditor.Infrastructure.Storage;
 public class S3FileStorage : IFileStorage
 {
     private readonly IAmazonS3 _client;
+    private readonly IAmazonS3 _presignClient;
     private readonly string _bucket;
     private readonly Protocol _protocol;
 
@@ -24,6 +25,8 @@ public class S3FileStorage : IFileStorage
     /// <summary>
     /// Creates the storage client from the configured <see cref="StorageOptions"/>.
     /// The target bucket must already exist; it is not created automatically.
+    /// Presigned URLs are generated with <c>S3PublicUrl</c> when set, so they are
+    /// reachable by clients outside the internal network.
     /// </summary>
     public S3FileStorage(IOptions<StorageOptions> options)
     {
@@ -33,13 +36,17 @@ public class S3FileStorage : IFileStorage
             ? Protocol.HTTP
             : Protocol.HTTPS;
 
-        var config = new AmazonS3Config
+        var credentials = new BasicAWSCredentials(opts.S3AccessKey, opts.S3SecretKey);
+        _client = new AmazonS3Client(credentials, new AmazonS3Config
         {
             ServiceURL = opts.S3ServiceUrl,
             ForcePathStyle = true
-        };
-        _client = new AmazonS3Client(
-            new BasicAWSCredentials(opts.S3AccessKey, opts.S3SecretKey), config);
+        });
+        _presignClient = new AmazonS3Client(credentials, new AmazonS3Config
+        {
+            ServiceURL = string.IsNullOrWhiteSpace(opts.S3PublicUrl) ? opts.S3ServiceUrl : opts.S3PublicUrl,
+            ForcePathStyle = true
+        });
     }
 
     /// <inheritdoc />
@@ -91,7 +98,7 @@ public class S3FileStorage : IFileStorage
     /// <inheritdoc />
     public Task<string> GetPresignedUrlAsync(string key, TimeSpan expiry, CancellationToken ct = default)
     {
-        var url = _client.GetPreSignedURL(new GetPreSignedUrlRequest
+        var url = _presignClient.GetPreSignedURL(new GetPreSignedUrlRequest
         {
             BucketName = _bucket,
             Key = key,
