@@ -6,12 +6,17 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace LatexEditor.Api.Controllers;
 
+/// <summary>
+/// Cookie-based authentication: email/password register/login/logout plus
+/// external OAuth login (Google, GitHub) when provider credentials are configured.
+/// </summary>
 [ApiController]
 [Route("api/auth")]
 public class AuthController(
     UserManager<ApplicationUser> userManager,
     SignInManager<ApplicationUser> signInManager) : ControllerBase
 {
+    /// <summary>Registers a new account and signs the user in immediately. Returns 400 with Identity errors on failure.</summary>
     [HttpPost("register")]
     public async Task<IActionResult> Register(RegisterDto dto)
     {
@@ -27,6 +32,7 @@ public class AuthController(
         return Ok(new { user.Id, user.Email });
     }
 
+    /// <summary>Signs in with email and password. Returns 401 on invalid credentials.</summary>
     [HttpPost("login")]
     public async Task<IActionResult> Login(LoginDto dto)
     {
@@ -42,6 +48,7 @@ public class AuthController(
         return Ok(new { user!.Id, user.Email });
     }
 
+    /// <summary>Signs the current user out and invalidates the authentication cookie.</summary>
     [HttpPost("logout")]
     public async Task<IActionResult> Logout()
     {
@@ -49,6 +56,7 @@ public class AuthController(
         return NoContent();
     }
 
+    /// <summary>Initiates an OAuth challenge for the given provider (<c>Google</c> or <c>GitHub</c>).</summary>
     [HttpGet("external-login")]
     public IActionResult ExternalLogin(string provider, string returnUrl = "/")
     {
@@ -57,6 +65,11 @@ public class AuthController(
         return Challenge(properties, provider);
     }
 
+    /// <summary>
+    /// OAuth callback: signs in if the external login is already linked to a local user,
+    /// otherwise creates a new user from the provider's email claim and links the login.
+    /// Redirects to <paramref name="returnUrl"/> on success.
+    /// </summary>
     [HttpGet("external-login-callback")]
     public async Task<IActionResult> ExternalLoginCallback(string returnUrl = "/")
     {

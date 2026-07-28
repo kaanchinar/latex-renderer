@@ -4,14 +4,17 @@ using Microsoft.EntityFrameworkCore;
 
 namespace LatexEditor.Infrastructure.Data;
 
+/// <summary>EF Core / PostgreSQL implementation of <see cref="IProjectRepository"/>.</summary>
 public class ProjectRepository(AppDbContext db) : IProjectRepository
 {
+    /// <inheritdoc />
     public async Task<Project?> GetByIdAsync(Guid id, string ownerId)
     {
         return await db.Projects
             .FirstOrDefaultAsync(p => p.Id == id && p.OwnerId == ownerId);
     }
 
+    /// <inheritdoc />
     public async Task<IReadOnlyList<Project>> GetByOwnerAsync(string ownerId)
     {
         return await db.Projects
@@ -19,12 +22,14 @@ public class ProjectRepository(AppDbContext db) : IProjectRepository
             .ToListAsync();
     }
 
+    /// <inheritdoc />
     public async Task AddAsync(Project project)
     {
         db.Projects.Add(project);
         await db.SaveChangesAsync();
     }
 
+    /// <inheritdoc />
     public async Task UpdateAsync(Project project)
     {
         project.UpdatedAt = DateTime.UtcNow;
@@ -32,6 +37,7 @@ public class ProjectRepository(AppDbContext db) : IProjectRepository
         await db.SaveChangesAsync();
     }
 
+    /// <inheritdoc />
     public async Task RemoveAsync(Project project)
     {
         db.Projects.Remove(project);

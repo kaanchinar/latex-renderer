@@ -4,11 +4,20 @@ using Microsoft.EntityFrameworkCore;
 
 namespace LatexEditor.Infrastructure.Data;
 
+/// <summary>
+/// EF Core context for application data and ASP.NET Core Identity.
+/// Identity tables are isolated in the dedicated <c>identity</c> schema;
+/// application tables remain in the default schema.
+/// </summary>
 public class AppDbContext(DbContextOptions<AppDbContext> options) : IdentityDbContext<ApplicationUser>(options)
 {
+    /// <summary>Projects table.</summary>
     public DbSet<Project> Projects => Set<Project>();
+
+    /// <summary>Project file metadata table. File content lives in object storage, not here.</summary>
     public DbSet<ProjectFile> ProjectFiles => Set<ProjectFile>();
 
+    /// <inheritdoc />
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);

@@ -4,8 +4,14 @@ using LatexEditor.Core.Interfaces;
 
 namespace LatexEditor.Application.Services;
 
+/// <summary>
+/// Use-case orchestration for project CRUD. All operations are scoped to the
+/// authenticated owner; non-existent or foreign projects surface as <c>null</c>/<c>false</c>.
+/// </summary>
 public class ProjectService(IProjectRepository repo)
 {
+    /// <summary>Creates a new project owned by the given user.</summary>
+    /// <exception cref="ArgumentException">The project name is empty or whitespace.</exception>
     public async Task<ProjectDto> CreateAsync(CreateProjectDto dto, string ownerId)
     {
         if (string.IsNullOrWhiteSpace(dto.Name))
@@ -28,6 +34,7 @@ public class ProjectService(IProjectRepository repo)
         };
     }
 
+    /// <summary>Returns the project, or <c>null</c> if it does not exist or belongs to another user.</summary>
     public async Task<ProjectDto?> GetByIdAsync(Guid id, string ownerId)
     {
         var project = await repo.GetByIdAsync(id, ownerId);
@@ -40,6 +47,7 @@ public class ProjectService(IProjectRepository repo)
         };
     }
 
+    /// <summary>Returns all projects owned by the given user.</summary>
     public async Task<IReadOnlyList<ProjectDto>> GetByOwnerAsync(string ownerId)
     {
         var projects = await repo.GetByOwnerAsync(ownerId);
@@ -51,6 +59,8 @@ public class ProjectService(IProjectRepository repo)
         })];
     }
 
+    /// <summary>Renames the project, or returns <c>null</c> if it does not exist or belongs to another user.</summary>
+    /// <exception cref="ArgumentException">The project name is empty or whitespace.</exception>
     public async Task<ProjectDto?> UpdateAsync(Guid id, UpdateProjectDto dto, string ownerId)
     {
         if (string.IsNullOrWhiteSpace(dto.Name)) throw new ArgumentException("Project name is required.", nameof(dto.Name));
@@ -69,6 +79,7 @@ public class ProjectService(IProjectRepository repo)
 
     }
 
+    /// <summary>Deletes the project. Returns <c>false</c> if it does not exist or belongs to another user.</summary>
     public async Task<bool> DeleteAsync(Guid id, string ownerId)
     {
         var project = await repo.GetByIdAsync(id, ownerId);
