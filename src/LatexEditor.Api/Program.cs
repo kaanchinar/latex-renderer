@@ -2,6 +2,7 @@ using LatexEditor.Application.Services;
 using LatexEditor.Core.Entities;
 using LatexEditor.Core.Interfaces;
 using LatexEditor.Infrastructure.Data;
+using LatexEditor.Infrastructure.Storage;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 
@@ -64,6 +65,14 @@ if (!string.IsNullOrWhiteSpace(githubClientId) && !string.IsNullOrWhiteSpace(git
 }
 
 builder.Services.AddAuthorization();
+
+builder.Services.Configure<StorageOptions>(builder.Configuration.GetSection(StorageOptions.SectionName));
+
+var storageProvider = builder.Configuration["Storage:Provider"] ?? "Local";
+if (storageProvider.Equals("S3", StringComparison.OrdinalIgnoreCase))
+    builder.Services.AddSingleton<IFileStorage, S3FileStorage>();
+else
+    builder.Services.AddSingleton<IFileStorage, LocalFileStorage>();
 
 builder.Services.AddScoped<IProjectRepository, ProjectRepository>();
 builder.Services.AddScoped<IProjectFileRepository, ProjectFileRepository>();

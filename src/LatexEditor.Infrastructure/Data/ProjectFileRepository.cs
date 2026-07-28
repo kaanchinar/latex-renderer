@@ -4,8 +4,10 @@ using Microsoft.EntityFrameworkCore;
 
 namespace LatexEditor.Infrastructure.Data;
 
+/// <summary>EF Core / PostgreSQL implementation of <see cref="IProjectFileRepository"/>.</summary>
 public class ProjectFileRepository(AppDbContext db) : IProjectFileRepository
 {
+    /// <inheritdoc />
     public async Task<IReadOnlyList<ProjectFile>> GetByProjectIdAsync(Guid projectId)
     {
         return await db.ProjectFiles
@@ -13,12 +15,14 @@ public class ProjectFileRepository(AppDbContext db) : IProjectFileRepository
             .ToListAsync();
     }
 
+    /// <inheritdoc />
     public async Task<ProjectFile?> GetByPathAsync(Guid projectId, string path)
     {
         return await db.ProjectFiles
             .FirstOrDefaultAsync(f => f.ProjectId == projectId && f.Path == path);
     }
 
+    /// <inheritdoc />
     public async Task UpsertAsync(ProjectFile file)
     {
         var existing = await db.ProjectFiles
@@ -30,7 +34,6 @@ public class ProjectFileRepository(AppDbContext db) : IProjectFileRepository
         }
         else
         {
-            existing.Content = file.Content;
             existing.StorageKey = file.StorageKey;
             existing.StorageProvider = file.StorageProvider;
             existing.IsBinary = file.IsBinary;
@@ -40,6 +43,7 @@ public class ProjectFileRepository(AppDbContext db) : IProjectFileRepository
         await db.SaveChangesAsync();
     }
 
+    /// <inheritdoc />
     public async Task RemoveAsync(Guid projectId, string path)
     {
         var file = await db.ProjectFiles

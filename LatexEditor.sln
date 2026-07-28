@@ -13,6 +13,12 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LatexEditor.Core", "src\Lat
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LatexEditor.Infrastructure", "src\LatexEditor.Infrastructure\LatexEditor.Infrastructure.csproj", "{98C063B4-526F-44A5-B96A-6B2A018F37B1}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tests", "tests", "{900A1FDC-DA4E-47B1-8437-10A4EBC6A783}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LatexEditor.Infrastructure.Tests", "tests\LatexEditor.Infrastructure.Tests\LatexEditor.Infrastructure.Tests.csproj", "{456BCCF8-EA0B-486E-ABB0-6E597B017219}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LatexEditor.Application.Tests", "tests\LatexEditor.Application.Tests\LatexEditor.Application.Tests.csproj", "{33C73073-821B-485C-ACE0-A9D2BE52D98A}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -38,11 +44,21 @@ Global
 		{98C063B4-526F-44A5-B96A-6B2A018F37B1}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{98C063B4-526F-44A5-B96A-6B2A018F37B1}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{98C063B4-526F-44A5-B96A-6B2A018F37B1}.Release|Any CPU.Build.0 = Release|Any CPU
+		{456BCCF8-EA0B-486E-ABB0-6E597B017219}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{456BCCF8-EA0B-486E-ABB0-6E597B017219}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{456BCCF8-EA0B-486E-ABB0-6E597B017219}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{456BCCF8-EA0B-486E-ABB0-6E597B017219}.Release|Any CPU.Build.0 = Release|Any CPU
+		{33C73073-821B-485C-ACE0-A9D2BE52D98A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{33C73073-821B-485C-ACE0-A9D2BE52D98A}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{33C73073-821B-485C-ACE0-A9D2BE52D98A}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{33C73073-821B-485C-ACE0-A9D2BE52D98A}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(NestedProjects) = preSolution
 		{F78B19A4-0250-4C9D-81E6-351C6E1A5CC6} = {0EC7186E-CB7E-4B79-927A-0E7E334A8C3B}
 		{3584DF63-6F85-4EFD-8B59-CD5F2BCFE5FC} = {0EC7186E-CB7E-4B79-927A-0E7E334A8C3B}
 		{F8EBAE98-D338-4F2D-A815-2B25AFD41016} = {0EC7186E-CB7E-4B79-927A-0E7E334A8C3B}
 		{98C063B4-526F-44A5-B96A-6B2A018F37B1} = {0EC7186E-CB7E-4B79-927A-0E7E334A8C3B}
+		{456BCCF8-EA0B-486E-ABB0-6E597B017219} = {900A1FDC-DA4E-47B1-8437-10A4EBC6A783}
+		{33C73073-821B-485C-ACE0-A9D2BE52D98A} = {900A1FDC-DA4E-47B1-8437-10A4EBC6A783}
 	EndGlobalSection
 EndGlobal
