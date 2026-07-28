@@ -17,11 +17,17 @@ services:
       Authentication__Google__ClientSecret: ${Authentication__Google__ClientSecret}
       Authentication__GitHub__ClientId: ${Authentication__GitHub__ClientId}
       Authentication__GitHub__ClientSecret: ${Authentication__GitHub__ClientSecret}
+      Storage__Provider: ${Storage__Provider}
+      Storage__LocalRootPath: ${Storage__LocalRootPath}
+      Storage__S3Bucket: ${Storage__S3Bucket}
+      Storage__S3ServiceUrl: ${Storage__S3ServiceUrl}
+      Storage__S3AccessKey: ${Storage__S3AccessKey}
+      Storage__S3SecretKey: ${Storage__S3SecretKey}
     depends_on:
       postgres:
         condition: service_healthy
-      minio:
-        condition: service_started
+      minio-init:
+        condition: service_completed_successfully
       redis:
         condition: service_started
 
@@ -54,6 +60,27 @@ services:
       - "9001:9001"
     volumes:
       - minio_data:/data
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  minio-init:
+    image: minio/mc:latest
+    container_name: latex_renderer_minio_init
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        mc alias set local http://minio:9000 "$${MINIO_ROOT_USER}" "$${MINIO_ROOT_PASSWORD}"
+        mc mb --ignore-existing "local/$${STORAGE_BUCKET}"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+      STORAGE_BUCKET: ${Storage__S3Bucket}
+    depends_on:
+      minio:
+        condition: service_healthy
 
   redis:
     image: redis:7-alpine
