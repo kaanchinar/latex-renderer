@@ -1,8 +1,33 @@
 @baseUrl = http://localhost:5000
 @projectId = 11464294-bb54-4e80-a13a-6600921cd9e9
 @filePath = main.tex
+@jobId = 00000000-0000-0000-0000-000000000000
 
-### Health check
+### Register a user
+POST {{baseUrl}}/api/auth/register
+Content-Type: application/json
+
+{
+  "email": "user@example.com",
+  "password": "secret123"
+}
+
+### Log in
+POST {{baseUrl}}/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "user@example.com",
+  "password": "secret123"
+}
+
+### Log out
+POST {{baseUrl}}/api/auth/logout
+
+### External login (open in browser)
+GET {{baseUrl}}/api/auth/external-login?provider=GitHub
+
+### List projects
 GET {{baseUrl}}/api/projects
 
 ### Create a new project
@@ -43,3 +68,12 @@ Content-Type: application/json
 
 ### Delete a file
 DELETE {{baseUrl}}/api/projects/{{projectId}}/files/{{filePath}}
+
+### Trigger a compile
+POST {{baseUrl}}/api/projects/{{projectId}}/compile
+
+### List compile jobs
+GET {{baseUrl}}/api/projects/{{projectId}}/jobs
+
+### Download a job's PDF (follows redirect)
+GET {{baseUrl}}/api/projects/{{projectId}}/jobs/{{jobId}}/pdf

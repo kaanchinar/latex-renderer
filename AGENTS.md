@@ -6,7 +6,7 @@ This document is written for AI coding agents working on the Latex Renderer proj
 
 Latex Renderer is a self-hosted, backend-focused platform for editing and compiling LaTeX documents in real time. It is an ASP.NET Core Web API organized around Clean Architecture principles.
 
-The current implementation is an early skeleton focused on the `Project` domain and its REST API surface. Projects and project files are persisted to PostgreSQL via Entity Framework Core. Authentication is implemented with ASP.NET Core Identity and cookie auth; Google and GitHub OAuth providers are wired in but only activate when client credentials are configured. Real-time compile preview, the LaTeX compile pipeline, object storage integration, and observability are planned but not yet implemented.
+The current implementation covers the `Project` domain, file storage, and the compile pipeline. Projects and project files are persisted to PostgreSQL via Entity Framework Core; file content lives in object storage behind `IFileStorage` (local disk or S3-compatible). Authentication is implemented with ASP.NET Core Identity and cookie auth; Google and GitHub OAuth providers activate when client credentials are configured. LaTeX compilation runs in a background worker via Tectonic, with REST endpoints for jobs and a SignalR hub for real-time events. Observability is planned but not yet implemented.
 
 Repository root: `/home/kaan/Projects/latex-renderer`
 Solution file: `LatexEditor.sln`
@@ -20,10 +20,10 @@ Solution file: `LatexEditor.sln`
 | Architecture | Clean Architecture | Four layers: `Api`, `Application`, `Core`, `Infrastructure`. |
 | Persistence | PostgreSQL + EF Core | `AppDbContext`, `ProjectRepository`, and `ProjectFileRepository`. Migrations are applied at startup in development. In-memory repositories remain in the codebase for reference but are not registered. |
 | Auth | ASP.NET Core Identity + cookie auth | `ApplicationUser`, `AppDbContext` integration, `/api/auth` endpoints. Google/GitHub OAuth activate when `Authentication:*:ClientId/ClientSecret` env vars are set. |
-| Real-time | Not implemented | SignalR `ProjectHub` is on the roadmap. |
-| LaTeX engine | Not implemented | Tectonic integration is planned. |
+| Real-time | SignalR | `ProjectHub` at `/hubs/projects` broadcasts compile lifecycle events to project groups. |
+| LaTeX engine | Tectonic | `ITectonicCompiler` process wrapper with hard timeout; compile jobs processed by a hosted `CompileWorker`. |
 | Object storage | Not integrated | File content is stored in PostgreSQL alongside metadata. A MinIO container is provided for local development, but the application does not use S3-compatible storage yet. |
-| Testing | No test projects | xUnit / WebApplicationFactory / Testcontainers are planned. |
+| Testing | xUnit + NSubstitute | Three test projects under `tests/`, one per layer. Integration tests with Testcontainers are planned. |
 | Deployment | Docker Compose available | `Dockerfile`, `docker-compose.yml`, `.env.example`, and `requests.http` are present. PostgreSQL, MinIO, Redis, and the app start together. Caddy is planned for production. |
 
 ## Project Structure
@@ -138,15 +138,9 @@ GET  /api/auth/external-login-callback
 ### Planned API surface (not implemented)
 
 ```text
-/api/projects/{id}/compile
-  POST /
-
-/api/projects/{id}/jobs
-  GET /
-  GET /{jobId}/pdf
-
-/hubs/projects
-  SignalR hub for real-time compile events
+(none — the v1 surface from LATEX_EDITOR_PLAN.md is implemented;
+compile endpoints are live at /api/projects/{id}/compile and
+/api/projects/{id}/jobs, and the SignalR hub at /hubs/projects)
 ```
 
 ## Authentication Flow
@@ -225,7 +219,7 @@ These rules apply to all changes made by agents and humans:
 
 ## Testing Instructions
 
-There are no test projects in the repository yet. The planned testing strategy includes:
+Test projects live under `tests/`, one per layer: `LatexEditor.Application.Tests`, `LatexEditor.Infrastructure.Tests`, `LatexEditor.Api.Tests`. The current suite is unit-level with hand-rolled fakes and NSubstitute. Still planned:
 
 - Unit tests with xUnit and a mocking library.
 - Integration tests using `WebApplicationFactory`.
