@@ -220,7 +220,7 @@ These rules apply to all changes made by agents and humans:
 ### XML documentation
 
 - XML doc comments are required on contracts: interfaces in `LatexEditor.Core` and services in `LatexEditor.Application`. Implementations use `<inheritdoc />`.
-- `LatexEditor.Api` controllers are documented so Swagger output is meaningful.
+- `LatexEditor.Api` controllers are documented so Swagger output is meaningful: `<summary>` holds a short action title (rendered as the heading in Scalar), longer explanations go in `<remarks>` (rendered as body text).
 - DTOs and entities are self-describing and intentionally not documented.
 
 ## Testing Instructions

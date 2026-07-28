@@ -17,7 +17,8 @@ public class ProjectFilesController(ProjectFileService service) : ControllerBase
 {
     private string CurrentUserId => User.FindFirstValue(ClaimTypes.NameIdentifier)!;
 
-    /// <summary>Lists file metadata for the project. Content is not included.</summary>
+    /// <summary>List project files</summary>
+    /// <remarks>Returns file metadata only; content is not included.</remarks>
     [HttpGet]
     public async Task<IActionResult> GetAll(Guid projectId)
     {
@@ -25,7 +26,8 @@ public class ProjectFilesController(ProjectFileService service) : ControllerBase
         return Ok(files);
     }
 
-    /// <summary>Returns a single file including its text content, or 404.</summary>
+    /// <summary>Get a file</summary>
+    /// <remarks>Returns the file including its text content, or 404 if the project or file does not exist.</remarks>
     [HttpGet("{path}")]
     public async Task<IActionResult> GetByPath(Guid projectId, string path)
     {
@@ -34,7 +36,8 @@ public class ProjectFilesController(ProjectFileService service) : ControllerBase
         return Ok(file);
     }
 
-    /// <summary>Creates or replaces the text file at the given path, or returns 404 if the project does not exist.</summary>
+    /// <summary>Create or replace a file</summary>
+    /// <remarks>Writes the text content at the given path. Returns 404 if the project does not exist.</remarks>
     [HttpPut("{path}")]
     public async Task<IActionResult> Upsert(Guid projectId, string path, UpsertFileDto dto)
     {
@@ -43,7 +46,8 @@ public class ProjectFilesController(ProjectFileService service) : ControllerBase
         return Ok(file);
     }
 
-    /// <summary>Deletes the file at the given path, or returns 404.</summary>
+    /// <summary>Delete a file</summary>
+    /// <remarks>Deletes the file at the given path from storage and metadata. Returns 404 if it does not exist.</remarks>
     [HttpDelete("{path}")]
     public async Task<IActionResult> Delete(Guid projectId, string path)
     {

@@ -16,7 +16,8 @@ public class AuthController(
     UserManager<ApplicationUser> userManager,
     SignInManager<ApplicationUser> signInManager) : ControllerBase
 {
-    /// <summary>Registers a new account and signs the user in immediately. Returns 400 with Identity errors on failure.</summary>
+    /// <summary>Register a new account</summary>
+    /// <remarks>Signs the user in immediately on success. Returns 400 with Identity errors on failure.</remarks>
     [HttpPost("register")]
     public async Task<IActionResult> Register(RegisterDto dto)
     {
@@ -32,7 +33,8 @@ public class AuthController(
         return Ok(new { user.Id, user.Email });
     }
 
-    /// <summary>Signs in with email and password. Returns 401 on invalid credentials.</summary>
+    /// <summary>Sign in with email and password</summary>
+    /// <remarks>Returns 401 on invalid credentials.</remarks>
     [HttpPost("login")]
     public async Task<IActionResult> Login(LoginDto dto)
     {
@@ -48,7 +50,8 @@ public class AuthController(
         return Ok(new { user!.Id, user.Email });
     }
 
-    /// <summary>Signs the current user out and invalidates the authentication cookie.</summary>
+    /// <summary>Sign out</summary>
+    /// <remarks>Invalidates the authentication cookie.</remarks>
     [HttpPost("logout")]
     public async Task<IActionResult> Logout()
     {
@@ -56,7 +59,8 @@ public class AuthController(
         return NoContent();
     }
 
-    /// <summary>Initiates an OAuth challenge for the given provider (<c>Google</c> or <c>GitHub</c>).</summary>
+    /// <summary>Initiate external OAuth login</summary>
+    /// <remarks>Challenges the given provider (<c>Google</c> or <c>GitHub</c>) and redirects to its login page.</remarks>
     [HttpGet("external-login")]
     public IActionResult ExternalLogin(string provider, string returnUrl = "/")
     {
@@ -65,11 +69,12 @@ public class AuthController(
         return Challenge(properties, provider);
     }
 
-    /// <summary>
-    /// OAuth callback: signs in if the external login is already linked to a local user,
+    /// <summary>External OAuth login callback</summary>
+    /// <remarks>
+    /// Signs in if the external login is already linked to a local user,
     /// otherwise creates a new user from the provider's email claim and links the login.
     /// Redirects to <paramref name="returnUrl"/> on success.
-    /// </summary>
+    /// </remarks>
     [HttpGet("external-login-callback")]
     public async Task<IActionResult> ExternalLoginCallback(string returnUrl = "/")
     {
