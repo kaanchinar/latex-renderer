@@ -5,6 +5,7 @@ using LatexEditor.Infrastructure.Data;
 using LatexEditor.Infrastructure.Storage;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Scalar.AspNetCore;
 
 DotNetEnv.Env.Load();
 
@@ -79,7 +80,20 @@ builder.Services.AddScoped<IProjectFileRepository, ProjectFileRepository>();
 builder.Services.AddScoped<ProjectService>();
 builder.Services.AddScoped<ProjectFileService>();
 
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen(options =>
+{
+    options.IncludeXmlComments(Path.Combine(AppContext.BaseDirectory, "LatexEditor.Api.xml"));
+});
+
 var app = builder.Build();
+
+if (app.Environment.IsDevelopment())
+{
+    app.UseSwagger();
+    app.MapScalarApiReference(options =>
+        options.WithOpenApiRoutePattern("/swagger/v1/swagger.json"));
+}
 
 app.UseAuthentication();
 app.UseRouting();
