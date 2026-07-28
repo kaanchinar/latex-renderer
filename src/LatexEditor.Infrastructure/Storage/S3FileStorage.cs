@@ -16,6 +16,7 @@ public class S3FileStorage : IFileStorage
 {
     private readonly IAmazonS3 _client;
     private readonly string _bucket;
+    private readonly Protocol _protocol;
 
     /// <inheritdoc />
     public StorageProvider Provider => StorageProvider.S3;
@@ -28,6 +29,9 @@ public class S3FileStorage : IFileStorage
     {
         var opts = options.Value;
         _bucket = opts.S3Bucket;
+        _protocol = opts.S3ServiceUrl.StartsWith("http://", StringComparison.OrdinalIgnoreCase)
+            ? Protocol.HTTP
+            : Protocol.HTTPS;
 
         var config = new AmazonS3Config
         {
@@ -92,7 +96,8 @@ public class S3FileStorage : IFileStorage
             BucketName = _bucket,
             Key = key,
             Expires = DateTime.UtcNow.Add(expiry),
-            Verb = HttpVerb.GET
+            Verb = HttpVerb.GET,
+            Protocol = _protocol
         });
         return Task.FromResult(url);
     }
