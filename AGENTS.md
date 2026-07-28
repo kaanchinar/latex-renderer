@@ -214,7 +214,7 @@ These rules apply to all changes made by agents and humans:
 
 - Every new feature or behavior change ships with tests in the same commit.
 - Test projects live under `tests/`, one project per layer: `LatexEditor.<Layer>.Tests`.
-- Tests use xUnit. Hand-rolled fakes are preferred for simple contracts; a mocking library may be introduced when fakes become unwieldy.
+- Tests use xUnit. Hand-rolled fakes are preferred for simple contracts; NSubstitute is used where fakes become unwieldy (e.g. Identity's `UserManager`/`SignInManager` in controller tests).
 - Run the full suite with `dotnet test` before committing.
 
 ### XML documentation

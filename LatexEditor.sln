@@ -19,6 +19,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LatexEditor.Infrastructure.
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LatexEditor.Application.Tests", "tests\LatexEditor.Application.Tests\LatexEditor.Application.Tests.csproj", "{33C73073-821B-485C-ACE0-A9D2BE52D98A}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LatexEditor.Api.Tests", "tests\LatexEditor.Api.Tests\LatexEditor.Api.Tests.csproj", "{3EE9222E-8910-42B2-93B4-D79ED05436E6}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -52,6 +54,10 @@ Global
 		{33C73073-821B-485C-ACE0-A9D2BE52D98A}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{33C73073-821B-485C-ACE0-A9D2BE52D98A}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{33C73073-821B-485C-ACE0-A9D2BE52D98A}.Release|Any CPU.Build.0 = Release|Any CPU
+		{3EE9222E-8910-42B2-93B4-D79ED05436E6}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{3EE9222E-8910-42B2-93B4-D79ED05436E6}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{3EE9222E-8910-42B2-93B4-D79ED05436E6}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{3EE9222E-8910-42B2-93B4-D79ED05436E6}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(NestedProjects) = preSolution
 		{F78B19A4-0250-4C9D-81E6-351C6E1A5CC6} = {0EC7186E-CB7E-4B79-927A-0E7E334A8C3B}
@@ -60,5 +66,6 @@ Global
 		{98C063B4-526F-44A5-B96A-6B2A018F37B1} = {0EC7186E-CB7E-4B79-927A-0E7E334A8C3B}
 		{456BCCF8-EA0B-486E-ABB0-6E597B017219} = {900A1FDC-DA4E-47B1-8437-10A4EBC6A783}
 		{33C73073-821B-485C-ACE0-A9D2BE52D98A} = {900A1FDC-DA4E-47B1-8437-10A4EBC6A783}
+		{3EE9222E-8910-42B2-93B4-D79ED05436E6} = {900A1FDC-DA4E-47B1-8437-10A4EBC6A783}
 	EndGlobalSection
 EndGlobal
