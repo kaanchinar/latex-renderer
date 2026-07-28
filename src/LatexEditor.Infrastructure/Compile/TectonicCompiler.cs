@@ -53,7 +53,7 @@ public class TectonicCompiler(IOptions<TectonicOptions> options) : ITectonicComp
             try
             {
                 process.Kill(entireProcessTree: true);
-                await process.WaitForExitAsync(timeoutCts.Token);
+                process.WaitForExit();
             }
             catch (InvalidOperationException) { }
             if (ct.IsCancellationRequested) throw;
