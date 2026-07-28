@@ -14,7 +14,8 @@ namespace LatexEditor.Api.Controllers;
 [Route("api/auth")]
 public class AuthController(
     UserManager<ApplicationUser> userManager,
-    SignInManager<ApplicationUser> signInManager) : ControllerBase
+    SignInManager<ApplicationUser> signInManager,
+    IAuthenticationSchemeProvider schemeProvider) : ControllerBase
 {
     /// <summary>Register a new account</summary>
     /// <remarks>Signs the user in immediately on success. Returns 400 with Identity errors on failure.</remarks>
@@ -60,13 +61,28 @@ public class AuthController(
     }
 
     /// <summary>Initiate external OAuth login</summary>
-    /// <remarks>Challenges the given provider (<c>Google</c> or <c>GitHub</c>) and redirects to its login page.</remarks>
+    /// <remarks>
+    /// Challenges the given provider (<c>Google</c> or <c>GitHub</c>) and redirects to its login page.
+    /// Returns 400 if the provider is not a registered external scheme.
+    /// </remarks>
     [HttpGet("external-login")]
-    public IActionResult ExternalLogin(string provider, string returnUrl = "/")
+    public async Task<IActionResult> ExternalLogin(string provider, string returnUrl = "/")
     {
+        var schemes = await schemeProvider.GetAllSchemesAsync();
+        var scheme = schemes.FirstOrDefault(s =>
+            s.Name.Equals(provider, StringComparison.OrdinalIgnoreCase) &&
+            s.HandlerType is not null &&
+            typeof(IAuthenticationHandler).IsAssignableFrom(s.HandlerType) &&
+            !s.Name.StartsWith("Identity.", StringComparison.OrdinalIgnoreCase));
+
+        if (scheme is null)
+        {
+            return BadRequest($"Unknown external login provider: {provider}");
+        }
+
         var redirectUrl = Url.Action(nameof(ExternalLoginCallback), "Auth", new { returnUrl })!;
-        var properties = signInManager.ConfigureExternalAuthenticationProperties(provider, redirectUrl);
-        return Challenge(properties, provider);
+        var properties = signInManager.ConfigureExternalAuthenticationProperties(scheme.Name, redirectUrl);
+        return Challenge(properties, scheme.Name);
     }
 
     /// <summary>External OAuth login callback</summary>
