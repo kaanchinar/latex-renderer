@@ -13,6 +13,7 @@ public class CompileJobProcessorTests
     private readonly JobRepoStub _jobRepo = new();
     private readonly FakeStorage _storage = new();
     private readonly FakeCompiler _compiler = new();
+    private readonly FakeEventPublisher _events = new();
     private readonly CompileJobProcessor _processor;
 
     private readonly Guid _projectId = Guid.NewGuid();
@@ -21,7 +22,7 @@ public class CompileJobProcessorTests
     {
         _projectRepo.Project = new Project { Id = _projectId, Name = "Demo", OwnerId = "owner" };
         _processor = new CompileJobProcessor(
-            _projectRepo, _fileRepo, _jobRepo, _storage, _compiler,
+            _projectRepo, _fileRepo, _jobRepo, _storage, _compiler, _events,
             NullLogger<CompileJobProcessor>.Instance);
     }
 
@@ -45,7 +46,7 @@ public class CompileJobProcessorTests
         var job = SeedJob();
         SeedFile("main.tex", "\\documentclass{article}");
         SeedFile("sections/intro.tex", "intro");
-        _compiler.Behavior = FakeCompiler.Succeed;
+        _compiler.Behavior = workDir => FakeCompiler.Succeed(workDir);
 
         await _processor.ProcessAsync(job.Id);
 
@@ -119,11 +120,42 @@ public class CompileJobProcessorTests
     }
 
     [Fact]
+    public async Task Process_Success_PublishesStartedOutputAndCompleted()
+    {
+        var job = SeedJob();
+        SeedFile("main.tex", "content");
+        _compiler.Behavior = workDir => FakeCompiler.Succeed(workDir, stdOut: "line1\nline2");
+
+        await _processor.ProcessAsync(job.Id);
+
+        Assert.Equal(job.Id, _events.StartedJobId);
+        Assert.Equal(new[] { "line1", "line2" }, _events.OutputLines);
+        Assert.Equal(job.Id, _events.CompletedJobId);
+        Assert.NotNull(_events.CompletedPdfUrl);
+        Assert.Null(_events.FailedJobId);
+    }
+
+    [Fact]
+    public async Task Process_Failure_PublishesStartedAndFailed()
+    {
+        var job = SeedJob();
+        SeedFile("main.tex", "content");
+        _compiler.Behavior = FakeCompiler.Fail;
+
+        await _processor.ProcessAsync(job.Id);
+
+        Assert.Equal(job.Id, _events.StartedJobId);
+        Assert.Equal(job.Id, _events.FailedJobId);
+        Assert.NotNull(_events.FailedError);
+        Assert.Null(_events.CompletedJobId);
+    }
+
+    [Fact]
     public async Task Process_CleansUpTempDirectory()
     {
         var job = SeedJob();
         SeedFile("main.tex", "content");
-        _compiler.Behavior = FakeCompiler.Succeed;
+        _compiler.Behavior = workDir => FakeCompiler.Succeed(workDir);
 
         await _processor.ProcessAsync(job.Id);
 
@@ -190,11 +222,47 @@ public class CompileJobProcessorTests
             Task.FromResult($"/files/{key}");
     }
 
+    private sealed class FakeEventPublisher : ICompileEventPublisher
+    {
+        public Guid? StartedJobId { get; private set; }
+        public Guid? CompletedJobId { get; private set; }
+        public string? CompletedPdfUrl { get; private set; }
+        public Guid? FailedJobId { get; private set; }
+        public string? FailedError { get; private set; }
+        public List<string> OutputLines { get; } = [];
+
+        public Task PublishStartedAsync(CompileJob job, CancellationToken ct = default)
+        {
+            StartedJobId = job.Id;
+            return Task.CompletedTask;
+        }
+
+        public Task PublishCompletedAsync(CompileJob job, string pdfUrl, CancellationToken ct = default)
+        {
+            CompletedJobId = job.Id;
+            CompletedPdfUrl = pdfUrl;
+            return Task.CompletedTask;
+        }
+
+        public Task PublishFailedAsync(CompileJob job, string error, CancellationToken ct = default)
+        {
+            FailedJobId = job.Id;
+            FailedError = error;
+            return Task.CompletedTask;
+        }
+
+        public Task PublishOutputAsync(CompileJob job, string stdoutLine, CancellationToken ct = default)
+        {
+            OutputLines.Add(stdoutLine);
+            return Task.CompletedTask;
+        }
+    }
+
     private sealed class FakeCompiler : ITectonicCompiler
     {
-        public Func<string, TectonicResult> Behavior { get; set; } = Succeed;
+        public Func<string, TectonicResult> Behavior { get; set; } = workDir => Succeed(workDir);
 
-        public static TectonicResult Succeed(string workDir) => Produce(workDir, "%PDF-1.7 fake");
+        public static TectonicResult Succeed(string workDir, string stdOut = "") => Produce(workDir, "%PDF-1.7 fake", stdOut);
 
         public static TectonicResult ProduceGarbage(string workDir) => Produce(workDir, "not a pdf");
 
@@ -210,11 +278,11 @@ public class CompileJobProcessorTests
             TimedOut = true
         };
 
-        private static TectonicResult Produce(string workDir, string content)
+        private static TectonicResult Produce(string workDir, string content, string stdOut = "")
         {
             var pdfPath = Path.Combine(workDir, "main.pdf");
             File.WriteAllText(pdfPath, content);
-            return new TectonicResult { ExitCode = 0, OutputPdfPath = pdfPath };
+            return new TectonicResult { ExitCode = 0, OutputPdfPath = pdfPath, StdOut = stdOut };
         }
 
         public Task<TectonicResult> CompileAsync(string workingDirectory, string entryFile, CancellationToken ct = default) =>

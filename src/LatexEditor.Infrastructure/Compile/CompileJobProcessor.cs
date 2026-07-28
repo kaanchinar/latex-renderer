@@ -16,10 +16,13 @@ public class CompileJobProcessor(
     ICompileJobRepository jobRepo,
     IFileStorage storage,
     ITectonicCompiler compiler,
+    ICompileEventPublisher events,
     ILogger<CompileJobProcessor> logger)
 {
     /// <summary>Convention-based entry document for compilation.</summary>
     public const string EntryFileName = "main.tex";
+
+    private static readonly TimeSpan PdfUrlExpiry = TimeSpan.FromMinutes(15);
 
     /// <summary>Processes the job with the given ID. No-op if the job no longer exists.</summary>
     public async Task ProcessAsync(Guid jobId, CancellationToken ct = default)
@@ -34,6 +37,7 @@ public class CompileJobProcessor(
         job.Status = CompileStatus.Running;
         job.StartedAt = DateTime.UtcNow;
         await jobRepo.UpdateAsync(job);
+        await SafePublishAsync(() => events.PublishStartedAsync(job, ct));
 
         var tempDir = Path.Combine(Path.GetTempPath(), $"latex-compile-{job.Id:N}");
         try
@@ -52,6 +56,7 @@ public class CompileJobProcessor(
 
             job.StdOut = result.StdOut;
             job.StdErr = result.StdErr;
+            await PublishOutputLinesAsync(job, result.StdOut, ct);
 
             if (result.TimedOut)
             {
@@ -80,12 +85,16 @@ public class CompileJobProcessor(
             job.Status = CompileStatus.Success;
             job.OutputStorageKey = outputKey;
             await CompleteAsync(job);
+
+            var pdfUrl = await storage.GetPresignedUrlAsync(outputKey, PdfUrlExpiry, ct);
+            await SafePublishAsync(() => events.PublishCompletedAsync(job, pdfUrl, ct));
         }
         catch (OperationCanceledException) when (ct.IsCancellationRequested)
         {
             job.Status = CompileStatus.Cancelled;
             job.ErrorMessage = "Compile was cancelled.";
             await CompleteAsync(job, saveOutput: false);
+            await SafePublishAsync(() => events.PublishFailedAsync(job, job.ErrorMessage));
             throw;
         }
         catch (Exception e)
@@ -147,6 +156,27 @@ public class CompileJobProcessor(
         job.StdOut = stdOut;
         job.StdErr = stdErr;
         await CompleteAsync(job, saveOutput: false);
+        await SafePublishAsync(() => events.PublishFailedAsync(job, error));
+    }
+
+    private async Task PublishOutputLinesAsync(CompileJob job, string stdOut, CancellationToken ct)
+    {
+        foreach (var line in stdOut.Split('\n', StringSplitOptions.RemoveEmptyEntries))
+        {
+            await SafePublishAsync(() => events.PublishOutputAsync(job, line.TrimEnd('\r'), ct));
+        }
+    }
+
+    private async Task SafePublishAsync(Func<Task> publish)
+    {
+        try
+        {
+            await publish();
+        }
+        catch (Exception e)
+        {
+            logger.LogWarning(e, "Failed to publish compile event");
+        }
     }
 
     private async Task CompleteAsync(CompileJob job, bool saveOutput = true)

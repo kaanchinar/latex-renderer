@@ -1,3 +1,4 @@
+using LatexEditor.Api.Hubs;
 using LatexEditor.Application.Services;
 using LatexEditor.Core.Entities;
 using LatexEditor.Core.Interfaces;
@@ -8,7 +9,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Scalar.AspNetCore;
 
-DotNetEnv.Env.Load();
+DotNetEnv.Env.TraversePath().Load();
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -82,12 +83,16 @@ builder.Services.AddScoped<IProjectFileRepository, ProjectFileRepository>();
 builder.Services.AddScoped<ICompileJobRepository, CompileJobRepository>();
 builder.Services.AddScoped<ProjectService>();
 builder.Services.AddScoped<ProjectFileService>();
+builder.Services.AddScoped<CompileService>();
 
 builder.Services.Configure<TectonicOptions>(builder.Configuration.GetSection(TectonicOptions.SectionName));
 builder.Services.AddSingleton<ICompileQueue, ChannelCompileQueue>();
 builder.Services.AddSingleton<ITectonicCompiler, TectonicCompiler>();
 builder.Services.AddScoped<CompileJobProcessor>();
 builder.Services.AddHostedService<CompileWorker>();
+
+builder.Services.AddSignalR();
+builder.Services.AddSingleton<ICompileEventPublisher, SignalRCompileEventPublisher>();
 
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(options =>
@@ -108,6 +113,7 @@ app.UseAuthentication();
 app.UseRouting();
 app.UseAuthorization();
 app.MapControllers();
+app.MapHub<ProjectHub>("/hubs/projects");
 
 using (var scope = app.Services.CreateScope())
 {
