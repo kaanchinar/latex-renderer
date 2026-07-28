@@ -6,9 +6,11 @@ services:
     container_name: latex_renderer_app
     ports:
       - "5000:8080"
+    volumes:
+      - tectonic_cache:/root/.cache/Tectonic
     environment:
       ASPNETCORE_ENVIRONMENT: Development
-      ConnectionStrings__DefaultConnection: ${ConnectionStrings__DefaultConnection}
+      ConnectionStrings__DefaultConnection: Host=postgres;Database=${POSTGRES_DB};Username=${POSTGRES_USER};Password=${POSTGRES_PASSWORD}
       Minio__Endpoint: ${Minio__Endpoint}
       Minio__AccessKey: ${Minio__AccessKey}
       Minio__SecretKey: ${Minio__SecretKey}
@@ -20,7 +22,8 @@ services:
       Storage__Provider: ${Storage__Provider}
       Storage__LocalRootPath: ${Storage__LocalRootPath}
       Storage__S3Bucket: ${Storage__S3Bucket}
-      Storage__S3ServiceUrl: ${Storage__S3ServiceUrl}
+      Storage__S3ServiceUrl: http://minio:9000
+      Storage__S3PublicUrl: http://localhost:9000
       Storage__S3AccessKey: ${Storage__S3AccessKey}
       Storage__S3SecretKey: ${Storage__S3SecretKey}
     depends_on:
@@ -91,3 +94,4 @@ services:
 volumes:
   postgres_data:
   minio_data:
+  tectonic_cache:
