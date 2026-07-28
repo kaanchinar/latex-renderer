@@ -14,6 +14,7 @@
   <ItemGroup>
     <PackageReference Include="AWSSDK.S3" Version="4.0.101.5" />
     <PackageReference Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" Version="8.0.29" />
+    <PackageReference Include="Microsoft.Extensions.Hosting.Abstractions" Version="8.0.1" />
     <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="8.0.11" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="8.0.29">
       <PrivateAssets>all</PrivateAssets>

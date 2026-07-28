@@ -2,6 +2,7 @@ using LatexEditor.Application.Services;
 using LatexEditor.Core.Entities;
 using LatexEditor.Core.Interfaces;
 using LatexEditor.Infrastructure.Data;
+using LatexEditor.Infrastructure.Compile;
 using LatexEditor.Infrastructure.Storage;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -78,8 +79,15 @@ else
 
 builder.Services.AddScoped<IProjectRepository, ProjectRepository>();
 builder.Services.AddScoped<IProjectFileRepository, ProjectFileRepository>();
+builder.Services.AddScoped<ICompileJobRepository, CompileJobRepository>();
 builder.Services.AddScoped<ProjectService>();
 builder.Services.AddScoped<ProjectFileService>();
+
+builder.Services.Configure<TectonicOptions>(builder.Configuration.GetSection(TectonicOptions.SectionName));
+builder.Services.AddSingleton<ICompileQueue, ChannelCompileQueue>();
+builder.Services.AddSingleton<ITectonicCompiler, TectonicCompiler>();
+builder.Services.AddScoped<CompileJobProcessor>();
+builder.Services.AddHostedService<CompileWorker>();
 
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(options =>
