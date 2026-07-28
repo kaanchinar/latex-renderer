@@ -35,7 +35,8 @@ public class TectonicCompiler(IOptions<TectonicOptions> options) : ITectonicComp
         using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
         timeoutCts.CancelAfter(TimeSpan.FromSeconds(_options.TimeoutSeconds));
 
-        using var process = new Process { StartInfo = startInfo };
+        using var process = new Process();
+        process.StartInfo = startInfo;
         process.Start();
 
         var stdOutTask = process.StandardOutput.ReadToEndAsync(timeoutCts.Token);
@@ -52,7 +53,7 @@ public class TectonicCompiler(IOptions<TectonicOptions> options) : ITectonicComp
             try
             {
                 process.Kill(entireProcessTree: true);
-                process.WaitForExit();
+                await process.WaitForExitAsync(timeoutCts.Token);
             }
             catch (InvalidOperationException) { }
             if (ct.IsCancellationRequested) throw;

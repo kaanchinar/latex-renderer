@@ -158,7 +158,7 @@ public class CompileJobProcessorTests
         public Dictionary<Guid, CompileJob> Jobs { get; } = new();
 
         public Task<CompileJob?> GetByIdAsync(Guid id) =>
-            Task.FromResult(Jobs.TryGetValue(id, out var job) ? job : null);
+            Task.FromResult(Jobs.GetValueOrDefault(id));
         public Task<IReadOnlyList<CompileJob>> GetByProjectIdAsync(Guid projectId) => throw new NotSupportedException();
         public Task AddAsync(CompileJob job) { Jobs[job.Id] = job; return Task.CompletedTask; }
         public Task UpdateAsync(CompileJob job) => Task.CompletedTask;
