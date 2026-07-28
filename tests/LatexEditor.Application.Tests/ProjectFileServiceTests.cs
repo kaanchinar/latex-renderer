@@ -148,6 +148,9 @@ public class ProjectFileServiceTests
         public Task<Project?> GetByIdAsync(Guid id, string ownerId) =>
             Task.FromResult(Projects.FirstOrDefault(p => p.Id == id && p.OwnerId == ownerId));
 
+        public Task<Project?> GetByIdUnrestrictedAsync(Guid id) =>
+            Task.FromResult(Projects.FirstOrDefault(p => p.Id == id));
+
         public Task AddAsync(Project project) { Projects.Add(project); return Task.CompletedTask; }
         public Task UpdateAsync(Project project) => Task.CompletedTask;
         public Task RemoveAsync(Project project) { Projects.Remove(project); return Task.CompletedTask; }

@@ -13,6 +13,13 @@ public interface IProjectRepository
     /// <summary>Returns the project with the given ID, or <c>null</c> if it does not exist or belongs to another user.</summary>
     Task<Project?> GetByIdAsync(Guid id, string ownerId);
 
+    /// <summary>
+    /// Returns the project with the given ID without owner filtering.
+    /// For internal background processing only (e.g. the compile worker);
+    /// never use for request-scoped code paths.
+    /// </summary>
+    Task<Project?> GetByIdUnrestrictedAsync(Guid id);
+
     /// <summary>Persists a new project.</summary>
     Task AddAsync(Project project);
 

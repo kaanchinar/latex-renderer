@@ -15,6 +15,12 @@ public class ProjectRepository(AppDbContext db) : IProjectRepository
     }
 
     /// <inheritdoc />
+    public async Task<Project?> GetByIdUnrestrictedAsync(Guid id)
+    {
+        return await db.Projects.FirstOrDefaultAsync(p => p.Id == id);
+    }
+
+    /// <inheritdoc />
     public async Task<IReadOnlyList<Project>> GetByOwnerAsync(string ownerId)
     {
         return await db.Projects

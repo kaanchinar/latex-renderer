@@ -64,6 +64,25 @@ public class ProjectServiceTests
         Assert.Empty(_repo.Projects);
     }
 
+    [Fact]
+    public async Task Create_GeneratesUrlFriendlySlug()
+    {
+        var result = await _service.CreateAsync(new CreateProjectDto { Name = "My Thesis Draft!" }, OwnerId);
+
+        Assert.Equal("my-thesis-draft", result.Slug);
+    }
+
+    [Theory]
+    [InlineData("Simple", "simple")]
+    [InlineData("  Spaces  Around  ", "spaces-around")]
+    [InlineData("multiple---dashes", "multiple-dashes")]
+    [InlineData("sp3c!al ch@rs", "sp3c-al-ch-rs")]
+    [InlineData("---leading-and-trailing---", "leading-and-trailing")]
+    public void GenerateSlug_ProducesUrlFriendlySlugs(string name, string expected)
+    {
+        Assert.Equal(expected, ProjectService.GenerateSlug(name));
+    }
+
     private sealed class ProjectRepositoryStub : IProjectRepository
     {
         public List<Project> Projects { get; } = [];
@@ -73,6 +92,9 @@ public class ProjectServiceTests
 
         public Task<Project?> GetByIdAsync(Guid id, string ownerId) =>
             Task.FromResult(Projects.FirstOrDefault(p => p.Id == id && p.OwnerId == ownerId));
+
+        public Task<Project?> GetByIdUnrestrictedAsync(Guid id) =>
+            Task.FromResult(Projects.FirstOrDefault(p => p.Id == id));
 
         public Task AddAsync(Project project) { Projects.Add(project); return Task.CompletedTask; }
 

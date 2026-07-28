@@ -21,17 +21,13 @@ public class ProjectService(IProjectRepository repo)
         {
             Id = Guid.NewGuid(),
             Name = dto.Name,
+            Slug = GenerateSlug(dto.Name),
             OwnerId = ownerId
         };
 
         await repo.AddAsync(project);
 
-        return new ProjectDto
-        {
-            Id = project.Id,
-            Name = project.Name,
-            CreatedAt = project.CreatedAt
-        };
+        return Map(project);
     }
 
     /// <summary>Returns the project, or <c>null</c> if it does not exist or belongs to another user.</summary>
@@ -39,24 +35,14 @@ public class ProjectService(IProjectRepository repo)
     {
         var project = await repo.GetByIdAsync(id, ownerId);
         if (project is null ) return null;
-        return new ProjectDto
-        {
-            CreatedAt = project.CreatedAt,
-            Id = project.Id,
-            Name = project.Name,
-        };
+        return Map(project);
     }
 
     /// <summary>Returns all projects owned by the given user.</summary>
     public async Task<IReadOnlyList<ProjectDto>> GetByOwnerAsync(string ownerId)
     {
         var projects = await repo.GetByOwnerAsync(ownerId);
-        return [.. projects.Select(p => new ProjectDto
-        {
-            Id = p.Id,
-            Name = p.Name,
-            CreatedAt = p.CreatedAt
-        })];
+        return [.. projects.Select(Map)];
     }
 
     /// <summary>Renames the project, or returns <c>null</c> if it does not exist or belongs to another user.</summary>
@@ -70,13 +56,7 @@ public class ProjectService(IProjectRepository repo)
 
         project.Name = dto.Name;
         await repo.UpdateAsync(project);
-        return new ProjectDto
-        {
-            Id = project.Id,
-            CreatedAt = project.CreatedAt,
-            Name = project.Name,
-        };
-
+        return Map(project);
     }
 
     /// <summary>Deletes the project. Returns <c>false</c> if it does not exist or belongs to another user.</summary>
@@ -86,5 +66,41 @@ public class ProjectService(IProjectRepository repo)
         if (project is null) return false;
         await repo.RemoveAsync(project);
         return true;
+    }
+
+    private static ProjectDto Map(Project project) => new()
+    {
+        Id = project.Id,
+        Name = project.Name,
+        Slug = project.Slug,
+        LastCompileStatus = project.LastCompileStatus?.ToString(),
+        CreatedAt = project.CreatedAt
+    };
+
+    /// <summary>
+    /// Converts a project name into a URL-friendly slug: lowercased, non-alphanumeric
+    /// runs replaced by single dashes, dashes trimmed from the ends.
+    /// </summary>
+    public static string GenerateSlug(string name)
+    {
+        var slug = name.Trim().ToLowerInvariant();
+        var builder = new System.Text.StringBuilder(slug.Length);
+        var lastWasDash = false;
+
+        foreach (var c in slug)
+        {
+            if (char.IsLetterOrDigit(c))
+            {
+                builder.Append(c);
+                lastWasDash = false;
+            }
+            else if (!lastWasDash && builder.Length > 0)
+            {
+                builder.Append('-');
+                lastWasDash = true;
+            }
+        }
+
+        return builder.ToString().TrimEnd('-');
     }
 }

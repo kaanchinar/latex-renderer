@@ -25,6 +25,13 @@ public class InMemoryProjectRepository : IProjectRepository
     }
 
     /// <inheritdoc />
+    public Task<Project?> GetByIdUnrestrictedAsync(Guid id)
+    {
+        var project = _projects.FirstOrDefault(p => p.Id == id);
+        return Task.FromResult(project);
+    }
+
+    /// <inheritdoc />
     public Task AddAsync(Project project)
     {
         _projects.Add(project);

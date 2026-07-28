@@ -17,6 +17,9 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : IdentityDbCo
     /// <summary>Project file metadata table. File content lives in object storage, not here.</summary>
     public DbSet<ProjectFile> ProjectFiles => Set<ProjectFile>();
 
+    /// <summary>Compile jobs table.</summary>
+    public DbSet<CompileJob> CompileJobs => Set<CompileJob>();
+
     /// <inheritdoc />
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -33,7 +36,9 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : IdentityDbCo
         {
             entity.HasKey(p => p.Id);
             entity.Property(p => p.Name).IsRequired().HasMaxLength(200);
+            entity.Property(p => p.Slug).IsRequired().HasMaxLength(200);
             entity.Property(p => p.OwnerId).IsRequired().HasMaxLength(200);
+            entity.Property(p => p.DefaultEngine).IsRequired().HasMaxLength(50);
             entity.HasIndex(p => p.OwnerId);
         });
 
@@ -43,6 +48,14 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : IdentityDbCo
             entity.Property(f => f.Path).IsRequired().HasMaxLength(500);
             entity.Property(f => f.StorageKey).HasMaxLength(1000);
             entity.HasIndex(f => new { f.ProjectId, f.Path }).IsUnique();
+        });
+
+        modelBuilder.Entity<CompileJob>(entity =>
+        {
+            entity.HasKey(j => j.Id);
+            entity.Property(j => j.ErrorMessage).HasMaxLength(2000);
+            entity.Property(j => j.OutputStorageKey).HasMaxLength(1000);
+            entity.HasIndex(j => j.ProjectId);
         });
     }
 }
