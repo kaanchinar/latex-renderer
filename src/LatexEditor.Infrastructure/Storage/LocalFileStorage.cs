@@ -19,9 +19,7 @@ public class LocalFileStorage(IOptions<StorageOptions> options) : IFileStorage
     private string ResolvePath(string key)
     {
         var fullPath = Path.GetFullPath(Path.Combine(_rootPath, key));
-        if (!fullPath.StartsWith(_rootPath + Path.DirectorySeparatorChar))
-            throw new ArgumentException($"Invalid storage key: {key}", nameof(key));
-        return fullPath;
+        return !fullPath.StartsWith(_rootPath + Path.DirectorySeparatorChar) ? throw new ArgumentException($"Invalid storage key: {key}", nameof(key)) : fullPath;
     }
 
     /// <inheritdoc />
