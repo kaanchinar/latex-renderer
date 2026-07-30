@@ -11,7 +11,7 @@ export type Project = {
   createdAt: string
 }
 
-type ProjectsState = {
+export type ProjectsState = {
   items: Project[]
   loading: boolean
   error: string | null

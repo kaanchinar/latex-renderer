@@ -45,3 +45,22 @@ If you have state that's important to retain within a component, consider creati
 import { writable } from 'svelte/store'
 export default writable(0)
 ```
+
+## Testing
+
+Unit tests use Vitest with jsdom:
+
+```bash
+cd frontend
+npm test
+```
+
+End-to-end tests use Playwright and require the Docker compose backend to be running:
+
+```bash
+docker compose up -d
+cd frontend
+npm run test:e2e
+```
+
+The e2e suite is skipped gracefully when the backend at http://localhost:5000 is unavailable.

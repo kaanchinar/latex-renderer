@@ -5,7 +5,7 @@ export interface LogError {
 }
 
 const fileLineRe = /^([^:\n]+?):(\d+):\s*(.*)$/
-const errorAtLineRe = /error:\s*(.*?)\s+at\s+line\s+(\d+)(?:\s+in\s+file\s+([^\n]+?))?[:.\n]?\s*(.*)$/i
+const errorAtLineRe = /error:\s*(.*?)\s+at\s+line\s+(\d+)(?:\s+in\s+file\s+([^\n]+?)(?=:|$))?(?::)?\s*(.*)$/i
 
 export function parseLogErrors(logs: string): LogError[] {
   const seen = new Set<string>()
@@ -43,19 +43,3 @@ export function parseLogErrors(logs: string): LogError[] {
   }
 }
 
-if (import.meta.env.DEV) {
-  const sample = [
-    'main.tex:42: Undefined control sequence.',
-    './sections/intro.tex:7: Missing $ inserted.',
-    'error: something broke at line 12',
-    'error: badness at line 5 in file main.tex: extra context',
-    'lorem ipsum dolor sit amet'
-  ].join('\n')
-
-  const parsed = parseLogErrors(sample)
-  console.assert(parsed.length === 4, 'expected 4 parsed errors, got ' + parsed.length)
-  console.assert(parsed[0].file === 'main.tex' && parsed[0].line === 42, 'first error mismatch')
-  console.assert(parsed[1].file === './sections/intro.tex' && parsed[1].line === 7, 'second error mismatch')
-  console.assert(parsed[2].line === 12 && parsed[2].file === '', 'third error mismatch')
-  console.assert(parsed[3].file === 'main.tex' && parsed[3].line === 5, 'fourth error mismatch')
-}
