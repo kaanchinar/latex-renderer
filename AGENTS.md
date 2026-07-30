@@ -152,6 +152,9 @@ GET  /files/{key}                           (local storage provider only)
 /health /health/ready /metrics
 ```
 
+The hub is not part of the OpenAPI surface; its contract (methods, events,
+payloads, JS client example) is documented in `docs/hubs.md`.
+
 ### Planned API surface (not implemented)
 
 ```text
