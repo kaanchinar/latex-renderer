@@ -2,9 +2,11 @@ using LatexEditor.Application.DTOs;
 using LatexEditor.Core.Entities;
 using LatexEditor.Core.Interfaces;
 using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.WebUtilities;
+using System.Security.Claims;
 using System.Text;
 
 namespace LatexEditor.Api.Controllers;
@@ -112,6 +114,30 @@ public class AuthController(
         await emailSender.SendAsync(user.Email!,
             "Confirm your Latex Renderer account",
             $"<p>Welcome! Confirm your email by clicking <a href=\"{link}\">this link</a>.</p>");
+    }
+
+    /// <summary>Get the current authenticated user</summary>
+    /// <remarks>
+    /// Returns the user's id and email from the authentication cookie claims.
+    /// If the email claim is missing (common for OAuth-created users), the value
+    /// is resolved from the user store.
+    /// </remarks>
+    [Authorize]
+    [HttpGet("me")]
+    public async Task<IActionResult> Me()
+    {
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (string.IsNullOrWhiteSpace(userId))
+            return Unauthorized();
+
+        var email = User.FindFirstValue(ClaimTypes.Email);
+        if (string.IsNullOrWhiteSpace(email))
+        {
+            var user = await userManager.FindByIdAsync(userId);
+            email = user?.Email ?? string.Empty;
+        }
+
+        return Ok(new { id = userId, email });
     }
 
     /// <summary>Sign out</summary>
