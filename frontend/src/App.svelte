@@ -5,8 +5,19 @@
   import Login from './lib/pages/Login.svelte'
   import Register from './lib/pages/Register.svelte'
   import Projects from './lib/pages/Projects.svelte'
+  import ProjectWorkspace from './lib/pages/ProjectWorkspace.svelte'
 
   const publicPaths = new Set(['/login', '/register'])
+
+  function workspaceId(path: string): string | null {
+    if (path === '/projects' || path === '/projects/') {
+      return null
+    }
+    if (path.startsWith('/projects/')) {
+      return path.slice('/projects/'.length)
+    }
+    return null
+  }
 
   $effect(() => {
     const state = $auth.state
@@ -53,6 +64,10 @@
       <Login />
     {:else if $path === '/register'}
       <Register />
+    {:else if $path === '/projects'}
+      <Projects />
+    {:else if workspaceId($path)}
+      <ProjectWorkspace id={workspaceId($path)!} />
     {:else}
       <Projects />
     {/if}
