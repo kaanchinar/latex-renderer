@@ -3,6 +3,8 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+    # Production pulls a prebuilt image from GHCR; set APP_IMAGE in .env there.
+    image: ${APP_IMAGE:-latex-renderer-app}
     container_name: latex_renderer_app
     restart: unless-stopped
     ports:

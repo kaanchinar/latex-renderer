@@ -1,0 +1,41 @@
+# Production overlay: docker compose -f docker-compose.yml -f deploy/docker-compose.prod.yml up -d
+# Requires DOMAIN, ACME_EMAIL, and the Storage__S3* / Authentication__* variables in .env.
+services:
+  app:
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+    # No host ports: only reachable through Caddy.
+    ports: []
+    expose:
+      - "8080"
+    depends_on: !reset
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+
+  caddy:
+    image: caddy:2-alpine
+    container_name: latex_renderer_caddy
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    environment:
+      DOMAIN: ${DOMAIN}
+      ACME_EMAIL: ${ACME_EMAIL}
+    depends_on:
+      app:
+        condition: service_started
+
+  # Local MinIO is unnecessary when Cloudflare R2 is the object store.
+  minio: !reset
+  minio-init: !reset
+
+volumes:
+  caddy_data:
+  caddy_config:

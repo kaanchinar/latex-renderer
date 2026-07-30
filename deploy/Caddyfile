@@ -1,0 +1,13 @@
+{
+	email {$ACME_EMAIL}
+}
+
+{$DOMAIN} {
+	reverse_proxy app:8080
+
+	# WebSocket support for SignalR is automatic with reverse_proxy.
+
+	# Never cache presigned-URL redirects or API responses.
+	@api path /api/* /hubs/* /files/* /health* /metrics
+	header @api Cache-Control "no-store"
+}
