@@ -84,4 +84,19 @@ public class TectonicCompilerTests : IDisposable
         Assert.Equal(0, result.ExitCode);
         Assert.Null(result.OutputPdfPath);
     }
+
+    [Fact]
+    public async Task Compile_NeverEnablesShellEscape()
+    {
+        var argsFile = Path.Combine(_workDir, "captured-args.txt");
+        var script = WriteScript("fake-tectonic.sh", $"echo \"$@\" > {argsFile}");
+        File.WriteAllText(Path.Combine(_workDir, "main.tex"), "dummy");
+
+        await CreateCompiler(script).CompileAsync(_workDir, "main.tex");
+
+        var args = await File.ReadAllTextAsync(argsFile);
+        Assert.DoesNotContain("shell-escape", args);
+        Assert.DoesNotContain("--shell-escape", args);
+        Assert.DoesNotContain("-shell-escape", args);
+    }
 }

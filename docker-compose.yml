@@ -4,10 +4,14 @@ services:
       context: .
       dockerfile: Dockerfile
     container_name: latex_renderer_app
+    restart: unless-stopped
     ports:
       - "5000:8080"
     volumes:
       - tectonic_cache:/root/.cache/Tectonic
+    # Compile workload headroom: the app plus one Tectonic process
+    mem_limit: 1536m
+    cpus: 1.5
     environment:
       ASPNETCORE_ENVIRONMENT: Development
       ConnectionStrings__DefaultConnection: Host=postgres;Database=${POSTGRES_DB};Username=${POSTGRES_USER};Password=${POSTGRES_PASSWORD}

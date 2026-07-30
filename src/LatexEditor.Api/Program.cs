@@ -8,6 +8,8 @@ using LatexEditor.Infrastructure.Storage;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Scalar.AspNetCore;
+using System.Security.Claims;
+using System.Threading.RateLimiting;
 
 DotNetEnv.Env.TraversePath().Load();
 
@@ -70,6 +72,28 @@ if (!string.IsNullOrWhiteSpace(githubClientId) && !string.IsNullOrWhiteSpace(git
 
 builder.Services.AddAuthorization();
 
+var compilePermitLimit = builder.Configuration.GetValue("RateLimiting:CompilePermitLimit", 5);
+var compileWindowSeconds = builder.Configuration.GetValue("RateLimiting:CompileWindowSeconds", 60);
+builder.Services.AddRateLimiter(options =>
+{
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+    options.AddPolicy("compile", httpContext =>
+    {
+        var partitionKey = httpContext.User.FindFirstValue(ClaimTypes.NameIdentifier)
+            ?? httpContext.Connection.RemoteIpAddress?.ToString()
+            ?? "anonymous";
+        return RateLimitPartition.GetSlidingWindowLimiter(
+            partitionKey,
+            _ => new SlidingWindowRateLimiterOptions
+            {
+                PermitLimit = compilePermitLimit,
+                Window = TimeSpan.FromSeconds(compileWindowSeconds),
+                SegmentsPerWindow = 4,
+                QueueLimit = 0
+            });
+    });
+});
+
 builder.Services.Configure<StorageOptions>(builder.Configuration.GetSection(StorageOptions.SectionName));
 
 var storageProvider = builder.Configuration["Storage:Provider"] ?? "Local";
@@ -111,6 +135,7 @@ if (app.Environment.IsDevelopment())
 
 app.UseAuthentication();
 app.UseRouting();
+app.UseRateLimiter();
 app.UseAuthorization();
 app.MapControllers();
 app.MapHub<ProjectHub>("/hubs/projects");

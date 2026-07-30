@@ -1,6 +1,7 @@
 using LatexEditor.Application.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using System.Security.Claims;
 
 namespace LatexEditor.Api.Controllers;
@@ -18,8 +19,13 @@ public class CompileController(CompileService service) : ControllerBase
     private string CurrentUserId => User.FindFirstValue(ClaimTypes.NameIdentifier)!;
 
     /// <summary>Trigger a compile</summary>
-    /// <remarks>Creates a compile job and queues it for background processing. Returns 404 if the project does not exist or belongs to another user.</remarks>
+    /// <remarks>
+    /// Creates a compile job and queues it for background processing. Returns 404 if the
+    /// project does not exist or belongs to another user. Rate-limited per user;
+    /// returns 429 when the limit is exceeded.
+    /// </remarks>
     [HttpPost("compile")]
+    [EnableRateLimiting("compile")]
     public async Task<IActionResult> TriggerCompile(Guid projectId)
     {
         var job = await service.TriggerCompileAsync(projectId, CurrentUserId);
