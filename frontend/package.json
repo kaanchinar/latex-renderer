@@ -30,6 +30,7 @@
     "@lezer/highlight": "^1.2.3",
     "@microsoft/signalr": "^10.0.0",
     "@tailwindcss/vite": "^4.3.3",
+    "pdfjs-dist": "^4.10.38",
     "tailwindcss": "^4.3.3"
   }
 }

@@ -6,6 +6,8 @@
   import { apiFetch, ApiError } from '../api/client'
   import Editor from '../editor/Editor.svelte'
   import LogsDrawer from '../components/LogsDrawer.svelte'
+  import PdfViewer from '../pdf/PdfViewer.svelte'
+  import JobHistory from '../components/JobHistory.svelte'
 
   type ProjectDetails = {
     id: string
@@ -30,6 +32,8 @@
   let savePending: { path: string; content: string } | null = null
   let compileTimeout: ReturnType<typeof setTimeout> | null = null
   let previousActivePath: string | null = null
+  let selectedPdfUrl = $state<string | null>(null)
+  let viewerUrl = $derived($compile.pdfUrl ?? selectedPdfUrl)
 
   $effect(() => {
     const id = projectId
@@ -296,6 +300,7 @@
             {/if}
           </span>
         {/if}
+        <JobHistory {projectId} onSelect={(url) => (selectedPdfUrl = url)} />
         <button
           type="button"
           onclick={handleCompile}
@@ -451,17 +456,7 @@
           Preview
         </div>
         <div class="flex-1 min-h-0 bg-bg">
-          {#if $compile.pdfUrl}
-            <iframe
-              title="PDF preview"
-              src={$compile.pdfUrl}
-              class="w-full h-full border-none"
-            ></iframe>
-          {:else}
-            <div class="h-full flex items-center justify-center text-text-muted">
-              PDF preview (F7)
-            </div>
-          {/if}
+          <PdfViewer url={viewerUrl} />
         </div>
       </section>
     </div>
