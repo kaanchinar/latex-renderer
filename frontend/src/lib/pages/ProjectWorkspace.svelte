@@ -2,6 +2,7 @@
   import { path, link, workspaceId } from '../router'
   import { files, type ProjectFile } from '../stores/files'
   import { apiFetch, ApiError } from '../api/client'
+  import Editor from '../editor/Editor.svelte'
 
   type ProjectDetails = {
     id: string
@@ -305,15 +306,15 @@
 
       <section class="flex-1 min-w-0 border-r border-border flex flex-col min-h-0 bg-bg">
         <div class="h-8 shrink-0 flex items-center px-3 border-b border-border bg-bg-subtle text-xs text-text-muted">
-          {$files.activePath ?? 'main.tex — editor loads here (F5)'}
+          {$files.activePath ?? 'No file selected'}
         </div>
         <div class="flex-1 overflow-auto">
           {#if $files.loading && $files.activePath}
             <div class="p-4 text-text-muted">Loading content...</div>
           {:else if $files.activePath}
-            <pre class="p-4 whitespace-pre-wrap">{$files.activeContent}</pre>
+            <Editor value={$files.activeContent} onChange={files.updateActiveContent} />
           {:else}
-            <div class="p-4 text-text-muted">Select a file to view its content.</div>
+            <div class="p-4 text-text-muted">Select a file to edit</div>
           {/if}
         </div>
       </section>

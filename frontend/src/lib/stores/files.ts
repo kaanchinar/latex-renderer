@@ -134,6 +134,10 @@ function createFiles() {
     }
   }
 
+  function updateActiveContent(content: string) {
+    update((state) => ({ ...state, activeContent: content }))
+  }
+
   function getProjectId(): string {
     let projectId = ''
     subscribe((state) => {
@@ -148,7 +152,8 @@ function createFiles() {
     select,
     create,
     remove,
-    updateContent
+    updateContent,
+    updateActiveContent
   }
 }
 
