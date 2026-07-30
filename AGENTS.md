@@ -6,7 +6,7 @@ This document is written for AI coding agents working on the Latex Renderer proj
 
 Latex Renderer is a self-hosted, backend-focused platform for editing and compiling LaTeX documents in real time. It is an ASP.NET Core Web API organized around Clean Architecture principles.
 
-The current implementation covers the `Project` domain, file storage, and the compile pipeline. Projects and project files are persisted to PostgreSQL via Entity Framework Core; file content lives in object storage behind `IFileStorage` (local disk or S3-compatible). Authentication is implemented with ASP.NET Core Identity and cookie auth; Google and GitHub OAuth providers activate when client credentials are configured. LaTeX compilation runs in a background worker via Tectonic, with REST endpoints for jobs and a SignalR hub for real-time events. Observability is planned but not yet implemented.
+The current implementation covers the `Project` domain, file storage, and the compile pipeline. Projects and project files are persisted to PostgreSQL via Entity Framework Core; file content lives in object storage behind `IFileStorage` (local disk or S3-compatible). Authentication is implemented with ASP.NET Core Identity and cookie auth; Google and GitHub OAuth providers activate when client credentials are configured. LaTeX compilation runs in a background worker via Tectonic, with REST endpoints for jobs and a SignalR hub for real-time events. Observability (Serilog, OpenTelemetry, Prometheus, health checks) is built in.
 
 Repository root: `/home/kaan/Projects/latex-renderer`
 Solution file: `LatexEditor.sln`
@@ -22,9 +22,10 @@ Solution file: `LatexEditor.sln`
 | Auth | ASP.NET Core Identity + cookie auth | `ApplicationUser`, `AppDbContext` integration, `/api/auth` endpoints. Google/GitHub OAuth activate when `Authentication:*:ClientId/ClientSecret` env vars are set. |
 | Real-time | SignalR | `ProjectHub` at `/hubs/projects` broadcasts compile lifecycle events to project groups. |
 | LaTeX engine | Tectonic | `ITectonicCompiler` process wrapper with hard timeout; compile jobs processed by a hosted `CompileWorker`. |
-| Object storage | Not integrated | File content is stored in PostgreSQL alongside metadata. A MinIO container is provided for local development, but the application does not use S3-compatible storage yet. |
-| Testing | xUnit + NSubstitute | Three test projects under `tests/`, one per layer. Integration tests with Testcontainers are planned. |
-| Deployment | Docker Compose available | `Dockerfile`, `docker-compose.yml`, `.env.example`, and `requests.http` are present. PostgreSQL, MinIO, Redis, and the app start together. Caddy is planned for production. |
+| Object storage | Local disk / S3-compatible | `IFileStorage` with `LocalFileStorage` (dev) and `S3FileStorage` (MinIO locally, Cloudflare R2 in production), selected via `Storage:Provider`. |
+| Observability | Serilog + OpenTelemetry + Prometheus | JSON console logs with trace IDs, compile pipeline tracing, `/metrics` (Prometheus), `/health` + `/health/ready`. |
+| Testing | xUnit + NSubstitute + Testcontainers | Four projects under `tests/`: one per layer plus `LatexEditor.IntegrationTests` (WebApplicationFactory + PostgreSQL container + in-memory SignalR). |
+| Deployment | Docker Compose + Caddy | `Dockerfile` bundles the Tectonic binary. `docker-compose.yml` for local dev; `deploy/docker-compose.prod.yml` overlay adds Caddy with automatic HTTPS. GHCR + SSH deploy via GitHub Actions. |
 
 ## Project Structure
 
@@ -33,7 +34,7 @@ src/
   LatexEditor.Api/              Controllers, middleware, DI registration, launch settings
   LatexEditor.Application/      Services, DTOs, use-case orchestration
   LatexEditor.Core/             Entities, interfaces, domain abstractions
-  LatexEditor.Infrastructure/   Repository implementations, EF (planned), storage (planned)
+  LatexEditor.Infrastructure/   Repositories, EF Core, storage, compile worker, telemetry, email
 ```
 
 ### Dependency direction
@@ -65,13 +66,11 @@ src/
 
 ### NuGet packages
 
-Only `LatexEditor.Infrastructure` currently references external packages:
+Notable external packages (see the `.csproj` files for exact versions):
 
-- `Microsoft.AspNetCore.Identity.EntityFrameworkCore` 8.0.0
-- `Npgsql.EntityFrameworkCore.PostgreSQL` 8.0.0
-- `Microsoft.EntityFrameworkCore.Design` 8.0.0
-
-These packages are actively used for PostgreSQL persistence and ASP.NET Core Identity.
+- `LatexEditor.Infrastructure`: EF Core + Npgsql, ASP.NET Core Identity EF stores, `AWSSDK.S3` (S3-compatible storage), `prometheus-net` (metrics), health check abstractions.
+- `LatexEditor.Api`: Serilog (`Serilog.AspNetCore` + compact JSON), OpenTelemetry (tracing + OTLP exporter), `prometheus-net.AspNetCore`, Npgsql health checks, Swashbuckle (OpenAPI generation), Scalar (API docs UI), OAuth providers (Google, GitHub), `DotNetEnv`.
+- Test projects: xUnit, NSubstitute, `Microsoft.AspNetCore.Mvc.Testing`, Testcontainers.PostgreSql, SignalR client.
 
 ## Build and Run Commands
 
@@ -131,8 +130,26 @@ DELETE /api/projects/{projectId:guid}/files/{path}
 POST /api/auth/register
 POST /api/auth/login
 POST /api/auth/logout
+GET  /api/auth/confirm-email?userId&token
+POST /api/auth/resend-confirmation
 GET  /api/auth/external-login?provider=Google|GitHub
 GET  /api/auth/external-login-callback
+```
+
+### Compile
+
+```text
+POST /api/projects/{id:guid}/compile        (rate-limited per user)
+GET  /api/projects/{id:guid}/jobs
+GET  /api/projects/{id:guid}/jobs/{jobId:guid}/pdf   (302 to short-lived URL)
+GET  /files/{key}                           (local storage provider only)
+```
+
+### Real-time and operations
+
+```text
+/hubs/projects       SignalR hub (JoinProject, TriggerCompile, UpdateFile)
+/health /health/ready /metrics
 ```
 
 ### Planned API surface (not implemented)
@@ -219,17 +236,12 @@ These rules apply to all changes made by agents and humans:
 
 ## Testing Instructions
 
-Test projects live under `tests/`, one per layer: `LatexEditor.Application.Tests`, `LatexEditor.Infrastructure.Tests`, `LatexEditor.Api.Tests`. The current suite is unit-level with hand-rolled fakes and NSubstitute. Still planned:
+Test projects live under `tests/`: `LatexEditor.Application.Tests`, `LatexEditor.Infrastructure.Tests`, `LatexEditor.Api.Tests` (unit-level with hand-rolled fakes and NSubstitute), and `LatexEditor.IntegrationTests` (`WebApplicationFactory` + Testcontainers PostgreSQL + in-memory SignalR hub tests + E2E compile smoke test).
 
-- Unit tests with xUnit and a mocking library.
-- Integration tests using `WebApplicationFactory`.
-- Testcontainers for PostgreSQL integration tests.
-- SignalR in-memory test server for hub events.
-
-Until tests are added, the primary verification command is:
+Integration tests require a running Docker daemon. Run everything with:
 
 ```bash
-dotnet build
+dotnet test
 ```
 
 ## Configuration
@@ -281,17 +293,19 @@ public class ProjectFile
 }
 ```
 
-File content is currently stored in memory alongside metadata. The `StorageKey` and `StorageProvider` fields are populated for future S3/local storage use but are not functional.
+File content lives in object storage (`IFileStorage`); the database row holds only metadata. `StorageKey` identifies the object and `StorageProvider` records which backend holds it.
 
 ## Security Considerations
 
 - Authentication is enforced via `[Authorize]` on project/file controllers. `CurrentUserId` is read from the authenticated user's `NameIdentifier` claim.
 - User isolation is enforced both by middleware (authentication) and by repository query parameters (ownerId filtering).
-- LaTeX compilation is not implemented yet. When it is added, the project design requires:
-  - Tectonic shell escape disabled.
-  - Hard timeouts and cancellation tokens on compile jobs.
-  - Per-job temporary directories cleaned in a `finally` block.
-  - Verification that generated output is a PDF before storing.
+- LaTeX compilation is sandboxed by design:
+  - Tectonic shell escape is never enabled (a test asserts the wrapper never passes the flag).
+  - Hard timeouts (default 60s, `Tectonic:TimeoutSeconds`) kill the whole process tree on expiry.
+  - Per-job temporary directories are cleaned in a `finally` block; file paths are validated against traversal.
+  - Generated output is verified to start with `%PDF` before it is stored or served.
+  - The compile endpoint is rate-limited per user (default 5 compiles/60s, `RateLimiting:*`), returning 429.
+  - The container runs with memory/CPU limits (`mem_limit`, `cpus` in compose).
 - Identity tables are isolated in a dedicated `identity` PostgreSQL schema; application tables remain in the default schema.
 
 ## Development Notes

@@ -24,6 +24,17 @@ Content-Type: application/json
 ### Log out
 POST {{baseUrl}}/api/auth/logout
 
+### Confirm email (link from confirmation email)
+GET {{baseUrl}}/api/auth/confirm-email?userId=00000000-0000-0000-0000-000000000000&token=TOKEN
+
+### Resend confirmation email
+POST {{baseUrl}}/api/auth/resend-confirmation
+Content-Type: application/json
+
+{
+  "email": "user@example.com"
+}
+
 ### External login (open in browser)
 GET {{baseUrl}}/api/auth/external-login?provider=GitHub
 
@@ -77,3 +88,12 @@ GET {{baseUrl}}/api/projects/{{projectId}}/jobs
 
 ### Download a job's PDF (follows redirect)
 GET {{baseUrl}}/api/projects/{{projectId}}/jobs/{{jobId}}/pdf
+
+### Health checks
+GET {{baseUrl}}/health
+
+###
+GET {{baseUrl}}/health/ready
+
+### Prometheus metrics
+GET {{baseUrl}}/metrics
