@@ -27,6 +27,16 @@ export function navigate(to: string) {
   window.location.hash = `#${to}`
 }
 
+export function workspaceId(path: string): string | null {
+  if (path === '/projects' || path === '/projects/') {
+    return null
+  }
+  if (path.startsWith('/projects/')) {
+    return path.slice('/projects/'.length)
+  }
+  return null
+}
+
 export function link(node: HTMLAnchorElement) {
   const rawHref = node.getAttribute('href') || '/'
   node.href = `#${rawHref}`

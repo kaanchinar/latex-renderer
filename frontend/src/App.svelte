@@ -1,6 +1,6 @@
 <script lang="ts">
   import { auth } from './lib/stores/auth'
-  import { path, navigate } from './lib/router'
+  import { path, navigate, workspaceId } from './lib/router'
   import ThemeToggle from './lib/ThemeToggle.svelte'
   import Login from './lib/pages/Login.svelte'
   import Register from './lib/pages/Register.svelte'
@@ -9,15 +9,7 @@
 
   const publicPaths = new Set(['/login', '/register'])
 
-  function workspaceId(path: string): string | null {
-    if (path === '/projects' || path === '/projects/') {
-      return null
-    }
-    if (path.startsWith('/projects/')) {
-      return path.slice('/projects/'.length)
-    }
-    return null
-  }
+  let isWorkspace = $derived(!!workspaceId($path))
 
   $effect(() => {
     const state = $auth.state
@@ -33,7 +25,6 @@
       navigate('/projects')
     }
   })
-
 
 </script>
 
@@ -57,7 +48,11 @@
     </div>
   </header>
 
-  <main class="flex-1 flex items-center justify-center bg-bg-subtle p-4">
+  <main
+    class={isWorkspace
+      ? 'flex-1 flex flex-col overflow-hidden bg-bg'
+      : 'flex-1 flex items-center justify-center bg-bg-subtle p-4'}
+  >
     {#if $auth.state === 'unknown'}
       <div class="text-text-muted">Loading...</div>
     {:else if $path === '/login'}
@@ -67,7 +62,7 @@
     {:else if $path === '/projects'}
       <Projects />
     {:else if workspaceId($path)}
-      <ProjectWorkspace id={workspaceId($path)!} />
+      <ProjectWorkspace />
     {:else}
       <Projects />
     {/if}
