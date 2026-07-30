@@ -19,10 +19,6 @@ using System.Threading.RateLimiting;
 
 DotNetEnv.Env.TraversePath().Load();
 
-Log.Logger = new LoggerConfiguration()
-    .WriteTo.Console(new CompactJsonFormatter())
-    .CreateBootstrapLogger();
-
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Host.UseSerilog((context, configuration) => configuration
@@ -87,13 +83,16 @@ if (!string.IsNullOrWhiteSpace(githubClientId) && !string.IsNullOrWhiteSpace(git
 
 builder.Services.AddAuthorization();
 
-var compilePermitLimit = builder.Configuration.GetValue("RateLimiting:CompilePermitLimit", 5);
-var compileWindowSeconds = builder.Configuration.GetValue("RateLimiting:CompileWindowSeconds", 60);
 builder.Services.AddRateLimiter(options =>
 {
     options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
     options.AddPolicy("compile", httpContext =>
     {
+        // Read config per request so test/host overrides applied late are honored.
+        var config = httpContext.RequestServices.GetRequiredService<IConfiguration>();
+        var permitLimit = config.GetValue("RateLimiting:CompilePermitLimit", 5);
+        var windowSeconds = config.GetValue("RateLimiting:CompileWindowSeconds", 60);
+
         var partitionKey = httpContext.User.FindFirstValue(ClaimTypes.NameIdentifier)
             ?? httpContext.Connection.RemoteIpAddress?.ToString()
             ?? "anonymous";
@@ -101,8 +100,8 @@ builder.Services.AddRateLimiter(options =>
             partitionKey,
             _ => new SlidingWindowRateLimiterOptions
             {
-                PermitLimit = compilePermitLimit,
-                Window = TimeSpan.FromSeconds(compileWindowSeconds),
+                PermitLimit = permitLimit,
+                Window = TimeSpan.FromSeconds(windowSeconds),
                 SegmentsPerWindow = 4,
                 QueueLimit = 0
             });
@@ -111,11 +110,15 @@ builder.Services.AddRateLimiter(options =>
 
 builder.Services.Configure<StorageOptions>(builder.Configuration.GetSection(StorageOptions.SectionName));
 
-var storageProvider = builder.Configuration["Storage:Provider"] ?? "Local";
-if (storageProvider.Equals("S3", StringComparison.OrdinalIgnoreCase))
-    builder.Services.AddSingleton<IFileStorage, S3FileStorage>();
-else
-    builder.Services.AddSingleton<IFileStorage, LocalFileStorage>();
+// Resolved lazily so host/test configuration overrides applied late are honored.
+builder.Services.AddSingleton<IFileStorage>(sp =>
+{
+    var configuration = sp.GetRequiredService<IConfiguration>();
+    var options = sp.GetRequiredService<Microsoft.Extensions.Options.IOptions<StorageOptions>>();
+    return configuration["Storage:Provider"]?.Equals("S3", StringComparison.OrdinalIgnoreCase) == true
+        ? new S3FileStorage(options)
+        : (IFileStorage)new LocalFileStorage(options);
+});
 
 builder.Services.AddScoped<IProjectRepository, ProjectRepository>();
 builder.Services.AddScoped<IProjectFileRepository, ProjectFileRepository>();
@@ -185,3 +188,5 @@ using (var scope = app.Services.CreateScope())
 }
 
 app.Run();
+
+public partial class Program;

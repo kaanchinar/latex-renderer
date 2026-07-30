@@ -59,11 +59,12 @@ public class LocalFileStorage(IOptions<StorageOptions> options) : IFileStorage
 
     /// <inheritdoc />
     /// <remarks>
-    /// Placeholder until the file-download endpoint exists: returns a server-relative
-    /// <c>/files/{key}</c> route rather than a cryptographically signed URL.
+    /// Returns a server-relative <c>/files/{key}</c> route served by the API rather than
+    /// a cryptographically signed URL. Keys are server-generated (GUIDs and slashes
+    /// only), so no escaping is applied — escaped slashes would not route correctly.
     /// </remarks>
     public Task<string> GetPresignedUrlAsync(string key, TimeSpan expiry, CancellationToken ct = default)
     {
-        return Task.FromResult($"/files/{Uri.EscapeDataString(key)}");
+        return Task.FromResult($"/files/{key}");
     }
 }
