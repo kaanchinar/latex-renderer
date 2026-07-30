@@ -2,13 +2,17 @@ namespace LatexEditor.Infrastructure.Email;
 
 /// <summary>
 /// Email configuration, bound from the <c>Email</c> configuration section
-/// (or <c>Email__*</c> environment variables). When <see cref="SmtpHost"/> is
-/// empty, emails are logged instead of sent (development default).
+/// (or <c>Email__*</c> environment variables). When neither a Resend API key
+/// nor an SMTP host is configured, emails are logged instead of sent
+/// (development default).
 /// </summary>
 public class EmailOptions
 {
     /// <summary>Configuration section name.</summary>
     public const string SectionName = "Email";
+
+    /// <summary>Resend API key. Set to send via Resend (https://resend.com).</summary>
+    public string ResendApiKey { get; set; } = string.Empty;
 
     /// <summary>SMTP server hostname. Empty means "log emails, don't send".</summary>
     public string SmtpHost { get; set; } = string.Empty;

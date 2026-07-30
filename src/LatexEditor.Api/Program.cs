@@ -131,7 +131,16 @@ builder.Services.AddScoped<CompileService>();
 
 builder.Services.Configure<LatexEditor.Infrastructure.Email.EmailOptions>(
     builder.Configuration.GetSection(LatexEditor.Infrastructure.Email.EmailOptions.SectionName));
-builder.Services.AddSingleton<IEmailSender, LatexEditor.Infrastructure.Email.SmtpEmailSender>();
+
+// Resolved lazily: Resend when an API key is configured, SMTP otherwise
+// (which itself falls back to log-only when no host is set).
+builder.Services.AddHttpClient<LatexEditor.Infrastructure.Email.ResendEmailSender>(
+    client => client.BaseAddress = new Uri("https://api.resend.com/"));
+builder.Services.AddSingleton<LatexEditor.Infrastructure.Email.SmtpEmailSender>();
+builder.Services.AddSingleton<IEmailSender>(sp =>
+    !string.IsNullOrWhiteSpace(sp.GetRequiredService<Microsoft.Extensions.Options.IOptions<LatexEditor.Infrastructure.Email.EmailOptions>>().Value.ResendApiKey)
+        ? sp.GetRequiredService<LatexEditor.Infrastructure.Email.ResendEmailSender>()
+        : (IEmailSender)sp.GetRequiredService<LatexEditor.Infrastructure.Email.SmtpEmailSender>());
 
 builder.Services.Configure<TectonicOptions>(builder.Configuration.GetSection(TectonicOptions.SectionName));
 builder.Services.AddSingleton<ICompileQueue, ChannelCompileQueue>();
