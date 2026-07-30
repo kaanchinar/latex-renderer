@@ -2,6 +2,7 @@
   import { path, link, workspaceId } from '../router'
   import { files, type ProjectFile } from '../stores/files'
   import { compile } from '../stores/compile'
+  import { parseLogErrors } from '../editor/logErrors'
   import * as hub from '../hub'
   import { apiFetch, ApiError } from '../api/client'
   import Editor from '../editor/Editor.svelte'
@@ -25,6 +26,12 @@
   let createError = $state<string | null>(null)
   let deletingPath = $state<string | null>(null)
   let logsOpen = $state(false)
+
+  let cursorLine = $state(1)
+  let cursorCol = $state(1)
+  let wordCount = $state(0)
+  let charCount = $state(0)
+  let statsTimeout: ReturnType<typeof setTimeout> | null = null
 
   let projectId = $derived(workspaceId($path) ?? '')
 
@@ -69,6 +76,29 @@
   $effect(() => {
     if ($compile.status === 'failed') {
       logsOpen = true
+    }
+  })
+
+  let activeErrors = $derived(
+    $files.activePath
+      ? parseLogErrors($compile.logs.join('\n')).filter(
+          (e) => !e.file || e.file === $files.activePath!.split('/').pop()
+        )
+      : []
+  )
+
+  $effect(() => {
+    const text = $files.activeContent
+    if (statsTimeout) clearTimeout(statsTimeout)
+    statsTimeout = setTimeout(() => {
+      charCount = text.length
+      wordCount = text.trim() === '' ? 0 : text.trim().split(/\s+/).length
+    }, 300)
+    return () => {
+      if (statsTimeout) {
+        clearTimeout(statsTimeout)
+        statsTimeout = null
+      }
     }
   })
 
@@ -444,7 +474,16 @@
           {#if $files.loading && $files.activePath}
             <div class="p-4 text-text-muted">Loading content...</div>
           {:else if $files.activePath}
-            <Editor value={$files.activeContent} onChange={handleChange} onSave={handleCompile} />
+            <Editor
+              value={$files.activeContent}
+              onChange={handleChange}
+              onSave={handleCompile}
+              errors={activeErrors}
+              onCursorChange={(line, col) => {
+                cursorLine = line
+                cursorCol = col
+              }}
+            />
           {:else}
             <div class="p-4 text-text-muted">Select a file to edit</div>
           {/if}
@@ -464,29 +503,41 @@
     <LogsDrawer bind:open={logsOpen} />
 
     <div class="h-6 shrink-0 flex items-center justify-between px-2 border-t border-border bg-bg-subtle text-xs text-text-muted">
-      <button
-        type="button"
-        onclick={() => (logsOpen = !logsOpen)}
-        class="hover:text-text"
-      >
-        logs
-      </button>
-      {#if $compile.status !== 'idle'}
-        <span
-          class="text-xs"
-          class:text-accent={$compile.status === 'running' || $compile.status === 'queued'}
-          class:text-success={$compile.status === 'success'}
-          class:text-error={$compile.status === 'failed'}
+      <div class="flex items-center gap-3">
+        <span>Ln {cursorLine}, Col {cursorCol}</span>
+        <span>{wordCount} words</span>
+        <span>{charCount} chars</span>
+      </div>
+      <div class="flex items-center gap-3">
+        {#if $compile.status === 'success' && $compile.lastDurationMs != null}
+          <span class="text-success">✔ {($compile.lastDurationMs / 1000).toFixed(1)}s</span>
+        {:else if $compile.status === 'failed'}
+          <span class="text-error">✘ failed</span>
+        {/if}
+        <button
+          type="button"
+          onclick={() => (logsOpen = !logsOpen)}
+          class="hover:text-text"
         >
-          {#if $compile.status === 'running' || $compile.status === 'queued'}
-            compiling…
-          {:else if $compile.status === 'success'}
-            ✔ compiled
-          {:else if $compile.status === 'failed'}
-            ✘ failed
-          {/if}
-        </span>
-      {/if}
+          logs
+        </button>
+        {#if $compile.status !== 'idle'}
+          <span
+            class="text-xs"
+            class:text-accent={$compile.status === 'running' || $compile.status === 'queued'}
+            class:text-success={$compile.status === 'success'}
+            class:text-error={$compile.status === 'failed'}
+          >
+            {#if $compile.status === 'running' || $compile.status === 'queued'}
+              compiling…
+            {:else if $compile.status === 'success'}
+              ✔ compiled
+            {:else if $compile.status === 'failed'}
+              ✘ failed
+            {/if}
+          </span>
+        {/if}
+      </div>
     </div>
   {/if}
 </div>

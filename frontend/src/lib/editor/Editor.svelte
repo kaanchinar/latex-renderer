@@ -14,15 +14,25 @@
   import { bracketMatching, indentUnit } from '@codemirror/language'
   import { closeBrackets, closeBracketsKeymap } from '@codemirror/autocomplete'
   import { searchKeymap, highlightSelectionMatches } from '@codemirror/search'
+  import { linter, lintGutter, setDiagnostics, type Diagnostic } from '@codemirror/lint'
   import { latexLanguage } from './latexLanguage'
+  import { latexAutocompleteExtension } from './latexCompletion'
+
+  interface LogError {
+    file: string
+    line: number
+    message: string
+  }
 
   interface Props {
     value: string
     onChange: (value: string) => void
     onSave?: () => void
+    errors?: LogError[]
+    onCursorChange?: (line: number, col: number) => void
   }
 
-  let { value = '', onChange, onSave }: Props = $props()
+  let { value = '', onChange, onSave, errors = [], onCursorChange }: Props = $props()
 
   let mount: HTMLDivElement | null = $state(null)
   let view: EditorView | null = null
@@ -90,6 +100,23 @@
         backgroundColor: 'var(--color-bg)',
         border: '1px solid var(--color-border)',
         color: 'var(--color-text)'
+      },
+      '.cm-lintRange-error': {
+        backgroundColor: 'color-mix(in srgb, var(--color-error) 20%, transparent)'
+      },
+      '.cm-lintMarker-error': {
+        color: 'var(--color-error)'
+      },
+      '.cm-tooltip-lint': {
+        backgroundColor: 'var(--color-bg-subtle)',
+        border: '1px solid var(--color-border)',
+        color: 'var(--color-text)'
+      },
+      '.cm-diagnostic': {
+        color: 'var(--color-text)'
+      },
+      '.cm-diagnostic-error': {
+        color: 'var(--color-error)'
       }
     },
     { dark: true }
@@ -107,6 +134,19 @@
     { dark: true }
   )
 
+  function toDiagnostics(state: EditorState, errs: LogError[]): Diagnostic[] {
+    return errs.map((err) => {
+      const lineNo = Math.max(1, err.line)
+      const line = state.doc.lines >= lineNo ? state.doc.line(lineNo) : state.doc.line(state.doc.lines)
+      return {
+        from: line.from,
+        to: line.to,
+        severity: 'error',
+        message: err.message
+      }
+    })
+  }
+
   function createExtensions(): Extension[] {
     return [
       latexLanguage,
@@ -118,6 +158,9 @@
       rectangularSelection(),
       bracketMatching(),
       closeBrackets(),
+      latexAutocompleteExtension,
+      linter(() => []),
+      lintGutter(),
       EditorState.allowMultipleSelections.of(true),
       indentUnit.of('  '),
       keymap.of([
@@ -141,6 +184,11 @@
       EditorView.updateListener.of((update) => {
         if (update.docChanged) {
           onChange(update.state.doc.toString())
+        }
+        if (update.selectionSet) {
+          const head = update.state.selection.main.head
+          const line = update.state.doc.lineAt(head)
+          onCursorChange?.(line.number, head - line.from + 1)
         }
       })
     ]
@@ -168,9 +216,12 @@
 
   $effect(() => {
     const next = value
-    if (view && view.state.doc.toString() !== next) {
+    const errs = errors
+    if (!view) return
+    if (view.state.doc.toString() !== next) {
       view.setState(createState(next))
     }
+    view.dispatch(setDiagnostics(view.state, toDiagnostics(view.state, errs)))
   })
 </script>
 
