@@ -40,3 +40,7 @@ wwwroot/
 # Local file storage
 storage/
 TODO.md
+
+# Frontend
+frontend/node_modules/
+frontend/dist/
