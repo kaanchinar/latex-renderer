@@ -6,7 +6,9 @@ using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using LatexEditor.Core.Interfaces;
 using Microsoft.AspNetCore.Mvc.Routing;
+using Microsoft.Extensions.Configuration;
 using NSubstitute;
 using SignInResult = Microsoft.AspNetCore.Identity.SignInResult;
 
@@ -17,6 +19,7 @@ public class AuthControllerTests
     private readonly UserManager<ApplicationUser> _userManager;
     private readonly SignInManager<ApplicationUser> _signInManager;
     private readonly IAuthenticationSchemeProvider _schemeProvider;
+    private readonly IEmailSender _emailSender;
     private readonly AuthController _controller;
 
     public AuthControllerTests()
@@ -42,7 +45,13 @@ public class AuthControllerTests
             new AuthenticationScheme("Identity.Application", null, typeof(DummyAuthHandler))
         ]);
 
-        _controller = new AuthController(_userManager, _signInManager, _schemeProvider);
+        _emailSender = Substitute.For<IEmailSender>();
+        var configuration = new ConfigurationBuilder().Build();
+
+        _controller = new AuthController(_userManager, _signInManager, _schemeProvider, _emailSender, configuration)
+        {
+            ControllerContext = new ControllerContext { HttpContext = new DefaultHttpContext() }
+        };
 
         var urlHelper = Substitute.For<IUrlHelper>();
         urlHelper.Action(Arg.Any<UrlActionContext>()).Returns("http://localhost/callback");
@@ -201,6 +210,58 @@ public class AuthControllerTests
             Arg.Is<ApplicationUser>(u => u.Email == "new@example.com"), info);
         await _signInManager.Received(1).SignInAsync(
             Arg.Is<ApplicationUser>(u => u.Email == "new@example.com"), false);
+    }
+
+    [Fact]
+    public async Task Register_SendsConfirmationEmail()
+    {
+        _userManager.CreateAsync(Arg.Any<ApplicationUser>(), Arg.Any<string>())
+            .Returns(IdentityResult.Success);
+        _userManager.GenerateEmailConfirmationTokenAsync(Arg.Any<ApplicationUser>())
+            .Returns("the-token");
+
+        await _controller.Register(new RegisterDto { Email = "a@b.c", Password = "pw" });
+
+        await _emailSender.Received(1).SendAsync(
+            "a@b.c",
+            Arg.Any<string>(),
+            Arg.Is<string>(body => body.Contains("confirm-email")),
+            Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task ConfirmEmail_ValidToken_ConfirmsUser()
+    {
+        var user = new ApplicationUser { Id = "u1", Email = "a@b.c" };
+        _userManager.FindByIdAsync("u1").Returns(user);
+        _userManager.ConfirmEmailAsync(user, "raw-token").Returns(IdentityResult.Success);
+        var encoded = Microsoft.AspNetCore.WebUtilities.WebEncoders.Base64UrlEncode(
+            System.Text.Encoding.UTF8.GetBytes("raw-token"));
+
+        var result = await _controller.ConfirmEmail("u1", encoded);
+
+        Assert.IsType<OkObjectResult>(result);
+    }
+
+    [Fact]
+    public async Task ConfirmEmail_UnknownUser_ReturnsBadRequest()
+    {
+        _userManager.FindByIdAsync(Arg.Any<string>()).Returns((ApplicationUser?)null);
+
+        var result = await _controller.ConfirmEmail("missing", "dG9rZW4");
+
+        Assert.IsType<BadRequestObjectResult>(result);
+    }
+
+    [Fact]
+    public async Task Login_UnconfirmedEmail_ReturnsForbidden()
+    {
+        _signInManager.PasswordSignInAsync(Arg.Any<string>(), Arg.Any<string>(), false, false)
+            .Returns(SignInResult.NotAllowed);
+
+        var result = await _controller.Login(new LoginDto { Email = "a@b.c", Password = "pw" });
+
+        Assert.Equal(403, ((ObjectResult)result).StatusCode);
     }
 
     private static ExternalLoginInfo CreateExternalLoginInfo(string? email)

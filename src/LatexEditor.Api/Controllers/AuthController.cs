@@ -1,8 +1,11 @@
 using LatexEditor.Application.DTOs;
 using LatexEditor.Core.Entities;
+using LatexEditor.Core.Interfaces;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.WebUtilities;
+using System.Text;
 
 namespace LatexEditor.Api.Controllers;
 
@@ -15,10 +18,18 @@ namespace LatexEditor.Api.Controllers;
 public class AuthController(
     UserManager<ApplicationUser> userManager,
     SignInManager<ApplicationUser> signInManager,
-    IAuthenticationSchemeProvider schemeProvider) : ControllerBase
+    IAuthenticationSchemeProvider schemeProvider,
+    IEmailSender emailSender,
+    IConfiguration configuration) : ControllerBase
 {
+    private bool RequireConfirmedEmail =>
+        configuration.GetValue("Authentication:RequireConfirmedEmail", false);
+
     /// <summary>Register a new account</summary>
-    /// <remarks>Signs the user in immediately on success. Returns 400 with Identity errors on failure.</remarks>
+    /// <remarks>
+    /// Sends a confirmation email. When <c>Authentication:RequireConfirmedEmail</c> is off
+    /// (the default), the user is also signed in immediately. Returns 400 with Identity errors on failure.
+    /// </remarks>
     [HttpPost("register")]
     public async Task<IActionResult> Register(RegisterDto dto)
     {
@@ -30,17 +41,58 @@ public class AuthController(
             return BadRequest(result.Errors.Select(e => e.Description));
         }
 
-        await signInManager.SignInAsync(user, isPersistent: false);
+        await SendConfirmationEmailAsync(user);
+
+        if (!RequireConfirmedEmail)
+            await signInManager.SignInAsync(user, isPersistent: false);
+
         return Ok(new { user.Id, user.Email });
     }
 
+    /// <summary>Confirm an email address</summary>
+    /// <remarks>Validates the token from the confirmation email. Returns 400 for invalid or expired tokens.</remarks>
+    [HttpGet("confirm-email")]
+    public async Task<IActionResult> ConfirmEmail(string userId, string token)
+    {
+        var user = await userManager.FindByIdAsync(userId);
+        if (user is null) return BadRequest("Invalid confirmation link.");
+
+        var decoded = Encoding.UTF8.GetString(WebEncoders.Base64UrlDecode(token));
+        var result = await userManager.ConfirmEmailAsync(user, decoded);
+
+        return result.Succeeded
+            ? Ok(new { message = "Email confirmed." })
+            : BadRequest(result.Errors.Select(e => e.Description));
+    }
+
+    /// <summary>Resend the confirmation email</summary>
+    /// <remarks>Returns 400 if the account does not exist or is already confirmed.</remarks>
+    [HttpPost("resend-confirmation")]
+    public async Task<IActionResult> ResendConfirmation(RegisterDto dto)
+    {
+        var user = await userManager.FindByEmailAsync(dto.Email);
+        if (user is null || user.EmailConfirmed)
+            return BadRequest("Cannot resend confirmation for this account.");
+
+        await SendConfirmationEmailAsync(user);
+        return NoContent();
+    }
+
     /// <summary>Sign in with email and password</summary>
-    /// <remarks>Returns 401 on invalid credentials.</remarks>
+    /// <remarks>
+    /// Returns 401 on invalid credentials. When email confirmation is required,
+    /// unconfirmed accounts get 403.
+    /// </remarks>
     [HttpPost("login")]
     public async Task<IActionResult> Login(LoginDto dto)
     {
         var result = await signInManager.PasswordSignInAsync(
             dto.Email, dto.Password, isPersistent: false, lockoutOnFailure: false);
+
+        if (result.IsNotAllowed)
+        {
+            return StatusCode(StatusCodes.Status403Forbidden, "Email address is not confirmed.");
+        }
 
         if (!result.Succeeded)
         {
@@ -49,6 +101,17 @@ public class AuthController(
 
         var user = await userManager.FindByEmailAsync(dto.Email);
         return Ok(new { user!.Id, user.Email });
+    }
+
+    private async Task SendConfirmationEmailAsync(ApplicationUser user)
+    {
+        var token = await userManager.GenerateEmailConfirmationTokenAsync(user);
+        var encoded = WebEncoders.Base64UrlEncode(Encoding.UTF8.GetBytes(token));
+        var link = $"{Request.Scheme}://{Request.Host}/api/auth/confirm-email?userId={user.Id}&token={encoded}";
+
+        await emailSender.SendAsync(user.Email!,
+            "Confirm your Latex Renderer account",
+            $"<p>Welcome! Confirm your email by clicking <a href=\"{link}\">this link</a>.</p>");
     }
 
     /// <summary>Sign out</summary>

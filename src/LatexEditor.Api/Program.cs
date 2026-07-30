@@ -38,6 +38,8 @@ builder.Services.AddIdentity<ApplicationUser, IdentityRole>(options =>
         options.Password.RequireNonAlphanumeric = false;
         options.Password.RequireUppercase = false;
         options.Password.RequireLowercase = false;
+        options.SignIn.RequireConfirmedEmail =
+            builder.Configuration.GetValue("Authentication:RequireConfirmedEmail", false);
     })
 .AddEntityFrameworkStores<AppDbContext>()
     .AddDefaultTokenProviders();
@@ -126,6 +128,10 @@ builder.Services.AddScoped<ICompileJobRepository, CompileJobRepository>();
 builder.Services.AddScoped<ProjectService>();
 builder.Services.AddScoped<ProjectFileService>();
 builder.Services.AddScoped<CompileService>();
+
+builder.Services.Configure<LatexEditor.Infrastructure.Email.EmailOptions>(
+    builder.Configuration.GetSection(LatexEditor.Infrastructure.Email.EmailOptions.SectionName));
+builder.Services.AddSingleton<IEmailSender, LatexEditor.Infrastructure.Email.SmtpEmailSender>();
 
 builder.Services.Configure<TectonicOptions>(builder.Configuration.GetSection(TectonicOptions.SectionName));
 builder.Services.AddSingleton<ICompileQueue, ChannelCompileQueue>();
