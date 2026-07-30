@@ -1,5 +1,6 @@
 using LatexEditor.Core.Entities;
 using LatexEditor.Core.Interfaces;
+using LatexEditor.Infrastructure.Telemetry;
 using Microsoft.Extensions.Logging;
 
 namespace LatexEditor.Infrastructure.Compile;
@@ -27,12 +28,16 @@ public class CompileJobProcessor(
     /// <summary>Processes the job with the given ID. No-op if the job no longer exists.</summary>
     public async Task ProcessAsync(Guid jobId, CancellationToken ct = default)
     {
+        using var activity = CompileTelemetry.ActivitySource.StartActivity("compile.process");
+        activity?.SetTag("compile.job_id", jobId.ToString());
+
         var job = await jobRepo.GetByIdAsync(jobId);
         if (job is null)
         {
             logger.LogWarning("Compile job {JobId} not found; skipping", jobId);
             return;
         }
+        activity?.SetTag("compile.project_id", job.ProjectId.ToString());
 
         job.Status = CompileStatus.Running;
         job.StartedAt = DateTime.UtcNow;
@@ -186,6 +191,11 @@ public class CompileJobProcessor(
             ? (long)(job.CompletedAt.Value - job.StartedAt.Value).TotalMilliseconds
             : null;
         if (!saveOutput) job.OutputStorageKey = null;
+
+        var outcome = job.Status.ToString().ToLowerInvariant();
+        System.Diagnostics.Activity.Current?.SetTag("compile.outcome", outcome);
+        CompileTelemetry.RecordJobCompleted(outcome, (job.DurationMs ?? 0) / 1000.0);
+
         await jobRepo.UpdateAsync(job);
 
         var project = await projectRepo.GetByIdUnrestrictedAsync(job.ProjectId);

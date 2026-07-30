@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using LatexEditor.Application.DTOs;
 using LatexEditor.Application.Services;
+using LatexEditor.Infrastructure.Telemetry;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.SignalR;
 
@@ -23,6 +24,20 @@ public class ProjectHub(
     private string CurrentUserId =>
         Context.User?.FindFirstValue(ClaimTypes.NameIdentifier)
         ?? throw new HubException("Unauthenticated.");
+
+    /// <inheritdoc />
+    public override Task OnConnectedAsync()
+    {
+        CompileTelemetry.ChangeHubConnections(1);
+        return base.OnConnectedAsync();
+    }
+
+    /// <inheritdoc />
+    public override Task OnDisconnectedAsync(Exception? exception)
+    {
+        CompileTelemetry.ChangeHubConnections(-1);
+        return base.OnDisconnectedAsync(exception);
+    }
 
     /// <summary>
     /// Subscribes the connection to a project's compile events.

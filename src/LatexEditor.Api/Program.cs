@@ -7,13 +7,28 @@ using LatexEditor.Infrastructure.Compile;
 using LatexEditor.Infrastructure.Storage;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using LatexEditor.Infrastructure.HealthChecks;
+using LatexEditor.Infrastructure.Telemetry;
+using OpenTelemetry.Trace;
+using Prometheus;
 using Scalar.AspNetCore;
+using Serilog;
+using Serilog.Formatting.Compact;
 using System.Security.Claims;
 using System.Threading.RateLimiting;
 
 DotNetEnv.Env.TraversePath().Load();
 
+Log.Logger = new LoggerConfiguration()
+    .WriteTo.Console(new CompactJsonFormatter())
+    .CreateBootstrapLogger();
+
 var builder = WebApplication.CreateBuilder(args);
+
+builder.Host.UseSerilog((context, configuration) => configuration
+    .ReadFrom.Configuration(context.Configuration)
+    .Enrich.FromLogContext()
+    .WriteTo.Console(new CompactJsonFormatter()));
 
 builder.Services.AddControllers();
 
@@ -124,6 +139,21 @@ builder.Services.AddSwaggerGen(options =>
     options.IncludeXmlComments(Path.Combine(AppContext.BaseDirectory, "LatexEditor.Api.xml"));
 });
 
+builder.Services.AddOpenTelemetry()
+    .WithTracing(tracing =>
+    {
+        tracing.AddAspNetCoreInstrumentation();
+        tracing.AddSource(CompileTelemetry.ActivitySourceName);
+        var otlpEndpoint = builder.Configuration["OpenTelemetry:OtlpEndpoint"];
+        if (!string.IsNullOrWhiteSpace(otlpEndpoint))
+            tracing.AddOtlpExporter(options => options.Endpoint = new Uri(otlpEndpoint));
+    });
+
+builder.Services.AddHealthChecks()
+    .AddNpgSql(builder.Configuration.GetConnectionString("DefaultConnection")!, name: "postgresql", tags: ["ready"])
+    .AddCheck<TectonicHealthCheck>("tectonic", tags: ["ready"])
+    .AddCheck<StorageHealthCheck>("storage", tags: ["ready"]);
+
 var app = builder.Build();
 
 if (app.Environment.IsDevelopment())
@@ -133,12 +163,20 @@ if (app.Environment.IsDevelopment())
         options.WithOpenApiRoutePattern("/swagger/v1/swagger.json"));
 }
 
+app.UseSerilogRequestLogging();
+
 app.UseAuthentication();
 app.UseRouting();
 app.UseRateLimiter();
 app.UseAuthorization();
 app.MapControllers();
 app.MapHub<ProjectHub>("/hubs/projects");
+app.MapMetrics();
+app.MapHealthChecks("/health");
+app.MapHealthChecks("/health/ready", new Microsoft.AspNetCore.Diagnostics.HealthChecks.HealthCheckOptions
+{
+    Predicate = check => check.Tags.Contains("ready")
+});
 
 using (var scope = app.Services.CreateScope())
 {
