@@ -4,7 +4,7 @@
 
 <button
   type="button"
-  on:click={toggleTheme}
+  onclick={toggleTheme}
   aria-label="Toggle theme"
   class="h-6 w-6 border border-border bg-bg-subtle text-text hover:text-accent flex items-center justify-center"
 >

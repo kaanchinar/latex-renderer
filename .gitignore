@@ -36,7 +36,6 @@ Thumbs.db
 publish/
 wwwroot/
 
-.env
 # Local file storage
 storage/
 TODO.md
