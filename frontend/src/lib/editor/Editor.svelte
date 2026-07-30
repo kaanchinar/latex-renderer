@@ -19,9 +19,10 @@
   interface Props {
     value: string
     onChange: (value: string) => void
+    onSave?: () => void
   }
 
-  let { value = '', onChange }: Props = $props()
+  let { value = '', onChange, onSave }: Props = $props()
 
   let mount: HTMLDivElement | null = $state(null)
   let view: EditorView | null = null
@@ -124,7 +125,15 @@
         ...historyKeymap,
         ...closeBracketsKeymap,
         ...searchKeymap,
-        indentWithTab
+        indentWithTab,
+        {
+          key: 'Mod-s',
+          run: () => {
+            onSave?.()
+            return true
+          },
+          preventDefault: true
+        }
       ]),
       highlightSelectionMatches(),
       chromeTheme,

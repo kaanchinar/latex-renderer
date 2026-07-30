@@ -2,6 +2,7 @@
   import { auth } from './lib/stores/auth'
   import { path, navigate, workspaceId } from './lib/router'
   import ThemeToggle from './lib/ThemeToggle.svelte'
+  import Toast from './lib/components/Toast.svelte'
   import Login from './lib/pages/Login.svelte'
   import Register from './lib/pages/Register.svelte'
   import Projects from './lib/pages/Projects.svelte'
@@ -67,4 +68,6 @@
       <Projects />
     {/if}
   </main>
+
+  <Toast />
 </div>

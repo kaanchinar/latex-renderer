@@ -1,8 +1,11 @@
 <script lang="ts">
   import { path, link, workspaceId } from '../router'
   import { files, type ProjectFile } from '../stores/files'
+  import { compile } from '../stores/compile'
+  import * as hub from '../hub'
   import { apiFetch, ApiError } from '../api/client'
   import Editor from '../editor/Editor.svelte'
+  import LogsDrawer from '../components/LogsDrawer.svelte'
 
   type ProjectDetails = {
     id: string
@@ -19,14 +22,50 @@
   let creating = $state(false)
   let createError = $state<string | null>(null)
   let deletingPath = $state<string | null>(null)
+  let logsOpen = $state(false)
 
   let projectId = $derived(workspaceId($path) ?? '')
+
+  let saveTimeout: ReturnType<typeof setTimeout> | null = null
+  let savePending: { path: string; content: string } | null = null
+  let compileTimeout: ReturnType<typeof setTimeout> | null = null
+  let previousActivePath: string | null = null
 
   $effect(() => {
     const id = projectId
     if (!id) return
     loadProject(id)
     files.load(id)
+  })
+
+  $effect(() => {
+    const id = projectId
+    if (!id) return
+
+    hub.joinProject(id).catch(() => {})
+    compile.start(id)
+
+    return () => {
+      flushSave()
+      cancelCompile()
+      compile.stop()
+      hub.leaveCurrentProject()
+    }
+  })
+
+  $effect(() => {
+    const path = $files.activePath
+    if (previousActivePath !== path) {
+      flushSave()
+      cancelCompile()
+      previousActivePath = path
+    }
+  })
+
+  $effect(() => {
+    if ($compile.status === 'failed') {
+      logsOpen = true
+    }
   })
 
   async function loadProject(id: string) {
@@ -151,6 +190,75 @@
   function selectFile(path: string) {
     files.select(path)
   }
+
+  function scheduleSave() {
+    cancelSave()
+    cancelCompile()
+
+    const id = projectId
+    const path = $files.activePath
+    const content = $files.activeContent
+    if (!id || !path) return
+
+    savePending = { path, content }
+    saveTimeout = setTimeout(() => {
+      saveTimeout = null
+      flushSave()
+    }, 300)
+  }
+
+  async function flushSave() {
+    cancelSave()
+    if (!savePending) return
+
+    const { path, content } = savePending
+    savePending = null
+
+    try {
+      await hub.updateFile(projectId, path, content)
+      scheduleCompile()
+    } catch {
+      // hub will reconnect; compile will use last saved server state
+    }
+  }
+
+  function cancelSave() {
+    if (saveTimeout) {
+      clearTimeout(saveTimeout)
+      saveTimeout = null
+    }
+  }
+
+  function scheduleCompile() {
+    cancelCompile()
+
+    const id = projectId
+    if (!id) return
+
+    compileTimeout = setTimeout(() => {
+      compileTimeout = null
+      compile.triggerCompile(id)
+    }, 1200)
+  }
+
+  function cancelCompile() {
+    if (compileTimeout) {
+      clearTimeout(compileTimeout)
+      compileTimeout = null
+    }
+  }
+
+  function handleChange(value: string) {
+    files.updateActiveContent(value)
+    scheduleSave()
+  }
+
+  async function handleCompile() {
+    await flushSave()
+    if (projectId) {
+      compile.triggerCompile(projectId)
+    }
+  }
 </script>
 
 <div class="flex-1 flex flex-col min-h-0">
@@ -171,13 +279,32 @@
   {:else}
     <div class="h-8 shrink-0 flex items-center justify-between px-3 border-b border-border bg-bg-subtle">
       <span class="font-semibold text-text truncate">{project?.name ?? 'Loading...'}</span>
-      <button
-        type="button"
-        disabled
-        class="border border-border bg-bg px-3 py-0.5 text-xs text-text-muted disabled:opacity-60"
-      >
-        Compile (F6)
-      </button>
+      <div class="flex items-center gap-3">
+        {#if $compile.status !== 'idle'}
+          <span
+            class="text-xs"
+            class:text-accent={$compile.status === 'running' || $compile.status === 'queued'}
+            class:text-success={$compile.status === 'success'}
+            class:text-error={$compile.status === 'failed'}
+          >
+            {#if $compile.status === 'running' || $compile.status === 'queued'}
+              compiling…
+            {:else if $compile.status === 'success'}
+              ✔ compiled
+            {:else if $compile.status === 'failed'}
+              ✘ failed
+            {/if}
+          </span>
+        {/if}
+        <button
+          type="button"
+          onclick={handleCompile}
+          disabled={$compile.status === 'running' || $compile.status === 'queued'}
+          class="border border-border bg-bg px-3 py-0.5 text-xs text-text hover:bg-bg-subtle disabled:opacity-60"
+        >
+          Compile (F6)
+        </button>
+      </div>
     </div>
 
     <div class="flex-1 min-h-0 flex">
@@ -312,7 +439,7 @@
           {#if $files.loading && $files.activePath}
             <div class="p-4 text-text-muted">Loading content...</div>
           {:else if $files.activePath}
-            <Editor value={$files.activeContent} onChange={files.updateActiveContent} />
+            <Editor value={$files.activeContent} onChange={handleChange} onSave={handleCompile} />
           {:else}
             <div class="p-4 text-text-muted">Select a file to edit</div>
           {/if}
@@ -323,10 +450,48 @@
         <div class="h-8 shrink-0 flex items-center px-3 border-b border-border bg-bg-subtle text-xs text-text-muted">
           Preview
         </div>
-        <div class="flex-1 flex items-center justify-center text-text-muted">
-          PDF preview (F7)
+        <div class="flex-1 min-h-0 bg-bg">
+          {#if $compile.pdfUrl}
+            <iframe
+              title="PDF preview"
+              src={$compile.pdfUrl}
+              class="w-full h-full border-none"
+            ></iframe>
+          {:else}
+            <div class="h-full flex items-center justify-center text-text-muted">
+              PDF preview (F7)
+            </div>
+          {/if}
         </div>
       </section>
+    </div>
+
+    <LogsDrawer bind:open={logsOpen} />
+
+    <div class="h-6 shrink-0 flex items-center justify-between px-2 border-t border-border bg-bg-subtle text-xs text-text-muted">
+      <button
+        type="button"
+        onclick={() => (logsOpen = !logsOpen)}
+        class="hover:text-text"
+      >
+        logs
+      </button>
+      {#if $compile.status !== 'idle'}
+        <span
+          class="text-xs"
+          class:text-accent={$compile.status === 'running' || $compile.status === 'queued'}
+          class:text-success={$compile.status === 'success'}
+          class:text-error={$compile.status === 'failed'}
+        >
+          {#if $compile.status === 'running' || $compile.status === 'queued'}
+            compiling…
+          {:else if $compile.status === 'success'}
+            ✔ compiled
+          {:else if $compile.status === 'failed'}
+            ✘ failed
+          {/if}
+        </span>
+      {/if}
     </div>
   {/if}
 </div>
