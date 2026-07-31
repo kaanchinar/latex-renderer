@@ -667,6 +667,7 @@
               class:text-accent={$compile.status === 'running' || $compile.status === 'queued'}
               class:text-success={$compile.status === 'success'}
               class:text-error={$compile.status === 'failed'}
+              title={$compile.status === 'failed' ? ($compile.error ?? 'Compile failed') : undefined}
             >
               {#if $compile.status === 'running' || $compile.status === 'queued'}
                 compiling…
@@ -928,7 +929,7 @@
           {#if $compile.status === 'success' && $compile.lastDurationMs != null}
             <span class="text-success">✔ {($compile.lastDurationMs / 1000).toFixed(1)}s</span>
           {:else if $compile.status === 'failed'}
-            <span class="text-error">✘ failed</span>
+            <span class="text-error" title={$compile.error ?? 'Compile failed'}>✘ failed</span>
           {/if}
           <button
             type="button"
@@ -944,6 +945,7 @@
               class:text-accent={$compile.status === 'running' || $compile.status === 'queued'}
               class:text-success={$compile.status === 'success'}
               class:text-error={$compile.status === 'failed'}
+              title={$compile.status === 'failed' ? ($compile.error ?? 'Compile failed') : undefined}
             >
               {#if $compile.status === 'running' || $compile.status === 'queued'}
                 compiling…
