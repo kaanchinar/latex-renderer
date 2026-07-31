@@ -19,6 +19,11 @@ FROM build AS publish
 RUN dotnet publish src/LatexEditor.Api/LatexEditor.Api.csproj -c Release -o /app/publish --no-restore
 
 FROM base AS final
+# fontconfig + a base font set: Tectonic errors without a fontconfig config
+# and fontspec documents need real system fonts.
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        fontconfig fonts-dejavu-core fonts-liberation \
+    && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 COPY --from=tectonic /usr/local/bin/tectonic /usr/local/bin/tectonic
 COPY --from=publish /app/publish .
