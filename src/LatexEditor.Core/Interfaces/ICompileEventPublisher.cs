@@ -18,5 +18,6 @@ public interface ICompileEventPublisher
     Task PublishFailedAsync(CompileJob job, string error, CancellationToken ct = default);
 
     /// <summary>A line of compiler output is available (sent after the process exits).</summary>
-    Task PublishOutputAsync(CompileJob job, string stdoutLine, CancellationToken ct = default);
+    /// <remarks>Lines may come from standard output or standard error.</remarks>
+    Task PublishOutputAsync(CompileJob job, string line, CancellationToken ct = default);
 }

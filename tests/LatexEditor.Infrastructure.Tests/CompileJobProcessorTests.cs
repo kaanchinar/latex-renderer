@@ -113,7 +113,7 @@ public class CompileJobProcessorTests
     {
         var job = SeedJob();
         SeedFile("main.tex", "\\bad");
-        _compiler.Behavior = FakeCompiler.Fail;
+        _compiler.Behavior = (workDir, entryFile) => FakeCompiler.Fail(workDir, entryFile);
 
         await _processor.ProcessAsync(job.Id);
 
@@ -177,13 +177,19 @@ public class CompileJobProcessorTests
     {
         var job = SeedJob();
         SeedFile("main.tex", "content");
-        _compiler.Behavior = (workDir, entryFile) => FakeCompiler.Fail(workDir, entryFile);
+        _compiler.Behavior = (workDir, entryFile) =>
+            FakeCompiler.Fail(workDir, entryFile, stdErr: "error: hello.tex:3: Undefined control sequence\nerror: hello.tex:4: Missing $ inserted");
 
         await _processor.ProcessAsync(job.Id);
 
         Assert.Equal(job.Id, _events.StartedJobId);
         Assert.Equal(job.Id, _events.FailedJobId);
         Assert.NotNull(_events.FailedError);
+        Assert.Equal(new[]
+        {
+            "error: hello.tex:3: Undefined control sequence",
+            "error: hello.tex:4: Missing $ inserted"
+        }, _events.OutputLines);
         Assert.Null(_events.CompletedJobId);
     }
 
@@ -288,9 +294,9 @@ public class CompileJobProcessorTests
             return Task.CompletedTask;
         }
 
-        public Task PublishOutputAsync(CompileJob job, string stdoutLine, CancellationToken ct = default)
+        public Task PublishOutputAsync(CompileJob job, string line, CancellationToken ct = default)
         {
-            OutputLines.Add(stdoutLine);
+            OutputLines.Add(line);
             return Task.CompletedTask;
         }
     }
@@ -306,10 +312,10 @@ public class CompileJobProcessorTests
         public static TectonicResult ProduceGarbage(string workDir, string entryFile = "main.tex") =>
             Produce(workDir, entryFile, "not a pdf");
 
-        public static TectonicResult Fail(string workDir, string entryFile = "main.tex") => new()
+        public static TectonicResult Fail(string workDir, string entryFile = "main.tex", string stdErr = "compile failed") => new()
         {
             ExitCode = 1,
-            StdErr = "compile failed"
+            StdErr = stdErr
         };
 
         public static TectonicResult TimeOut(string workDir, string entryFile = "main.tex") => new()

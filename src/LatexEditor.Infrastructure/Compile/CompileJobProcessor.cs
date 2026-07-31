@@ -65,7 +65,7 @@ public class CompileJobProcessor(
 
             job.StdOut = result.StdOut;
             job.StdErr = result.StdErr;
-            await PublishOutputLinesAsync(job, result.StdOut, ct);
+            await PublishOutputLinesAsync(job, result.StdOut, result.StdErr, ct);
 
             if (result.TimedOut)
             {
@@ -198,9 +198,16 @@ public class CompileJobProcessor(
         await SafePublishAsync(() => events.PublishFailedAsync(job, error));
     }
 
-    private async Task PublishOutputLinesAsync(CompileJob job, string stdOut, CancellationToken ct)
+    private async Task PublishOutputLinesAsync(CompileJob job, string stdOut, string stdErr, CancellationToken ct)
     {
-        foreach (var line in stdOut.Split('\n', StringSplitOptions.RemoveEmptyEntries))
+        const int maxLines = 500;
+        await PublishLinesAsync(job, stdOut, maxLines, ct);
+        await PublishLinesAsync(job, stdErr, maxLines, ct);
+    }
+
+    private async Task PublishLinesAsync(CompileJob job, string output, int maxLines, CancellationToken ct)
+    {
+        foreach (var line in output.Split('\n', StringSplitOptions.RemoveEmptyEntries).Take(maxLines))
         {
             await SafePublishAsync(() => events.PublishOutputAsync(job, line.TrimEnd('\r'), ct));
         }

@@ -30,9 +30,9 @@ public class SignalRCompileEventPublisher(IHubContext<ProjectHub, IProjectClient
     }
 
     /// <inheritdoc />
-    public Task PublishOutputAsync(CompileJob job, string stdoutLine, CancellationToken ct = default)
+    public Task PublishOutputAsync(CompileJob job, string line, CancellationToken ct = default)
     {
-        return Group(job).CompileOutput(stdoutLine);
+        return Group(job).CompileOutput(line);
     }
 
     private IProjectClient Group(CompileJob job) =>
