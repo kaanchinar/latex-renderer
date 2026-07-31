@@ -48,14 +48,30 @@ export async function apiFetch<T>(
       } else if (typeof parsed === 'string') {
         message = parsed
       } else if (parsed && typeof parsed === 'object') {
-        if (parsed.message) message = parsed.message
-        if (parsed.errors) errors = Array.isArray(parsed.errors) ? parsed.errors : [String(parsed.errors)]
+        // ASP.NET ProblemDetails: { title, detail, status, ... }
+        if (parsed.detail) message = parsed.detail
+        else if (parsed.title) message = parsed.title
+        else if (parsed.message) message = parsed.message
+        if (parsed.errors) {
+          if (Array.isArray(parsed.errors)) {
+            errors = parsed.errors
+          } else if (typeof parsed.errors === 'object') {
+            // ModelState dictionary: { "field": ["err1", "err2"] }
+            errors = Object.values(parsed.errors).flat().map(String)
+          } else {
+            errors = [String(parsed.errors)]
+          }
+        }
       }
     } catch {
       // leave message as raw response text
     }
 
-    if (response.status === 401) {
+    // Auth endpoints handle their own 401s (bad credentials); don't
+    // auto-logout for login/register, that would wipe the form state.
+    const isAuthEndpoint =
+      path === '/api/auth/login' || path === '/api/auth/register'
+    if (response.status === 401 && !isAuthEndpoint) {
       setLoggedOut()
       navigate('/login')
     }

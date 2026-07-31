@@ -17,7 +17,13 @@
       await auth.login(email, password)
     } catch (error) {
       if (error instanceof ApiError) {
-        errors = error.errors.length > 0 ? error.errors : [error.message]
+        if (error.status === 401) {
+          errors = ['Invalid email or password.']
+        } else if (error.errors.length > 0) {
+          errors = error.errors
+        } else {
+          errors = [error.message || 'Login failed.']
+        }
       } else {
         errors = ['An unexpected error occurred.']
       }

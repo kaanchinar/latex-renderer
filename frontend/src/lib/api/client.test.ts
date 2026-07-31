@@ -83,4 +83,53 @@ describe('apiFetch', () => {
     expect(setLoggedOut).toHaveBeenCalled()
     expect(navigate).toHaveBeenCalledWith('/login')
   })
+
+  it('does NOT auto-logout on 401 for /api/auth/login', async () => {
+    const body = JSON.stringify({
+      type: 'https://tools.ietf.org/html/rfc9110#section-15.5.2',
+      title: 'Unauthorized',
+      status: 401
+    })
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: false,
+        status: 401,
+        text: vi.fn().mockResolvedValue(body)
+      })
+    )
+
+    try {
+      await apiFetch('/api/auth/login', { method: 'POST', body: {} })
+    } catch (error) {
+      expect(error).toBeInstanceOf(ApiError)
+      expect((error as ApiError).message).toBe('Unauthorized')
+    }
+    expect(setLoggedOut).not.toHaveBeenCalled()
+    expect(navigate).not.toHaveBeenCalled()
+  })
+
+  it('parses ProblemDetails title/detail into ApiError.message', async () => {
+    const body = JSON.stringify({
+      type: 'https://tools.ietf.org/html/rfc9110#section-15.5.2',
+      title: 'Unauthorized',
+      status: 401,
+      detail: 'Invalid email or password.'
+    })
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: false,
+        status: 401,
+        text: vi.fn().mockResolvedValue(body)
+      })
+    )
+
+    try {
+      await apiFetch('/api/something')
+    } catch (error) {
+      expect(error).toBeInstanceOf(ApiError)
+      expect((error as ApiError).message).toBe('Invalid email or password.')
+    }
+  })
 })
