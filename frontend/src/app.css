@@ -9,7 +9,7 @@
   --color-accent: #0f5cc0;
   --color-success: #157f3d;
   --color-error: #b3261e;
-  --color-selection: #b3d1f5;
+  --color-selection: #add6ff;
 
   --font-sans: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
     "Helvetica Neue", Arial, sans-serif;
@@ -27,7 +27,7 @@
   --color-accent: #5c9ce6;
   --color-success: #3da35f;
   --color-error: #e06058;
-  --color-selection: #2f5b8a;
+  --color-selection: #264f78;
 }
 
 *,
@@ -47,6 +47,11 @@ body {
   font-size: 14px;
   line-height: 1.4;
   background-color: var(--color-bg);
+  color: var(--color-text);
+}
+
+::selection {
+  background-color: var(--color-selection);
   color: var(--color-text);
 }
 

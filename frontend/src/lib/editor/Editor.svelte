@@ -103,6 +103,9 @@
       '.cm-focused .cm-selectionBackground': {
         backgroundColor: 'var(--color-selection)'
       },
+      '.cm-selectionMatch': {
+        backgroundColor: 'color-mix(in srgb, var(--color-accent) 20%, transparent)'
+      },
       '&::selection': {
         backgroundColor: 'var(--color-selection)',
         color: 'var(--color-text)'
