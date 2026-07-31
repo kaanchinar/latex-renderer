@@ -20,7 +20,11 @@ public class CompileJobProcessor(
     ICompileEventPublisher events,
     ILogger<CompileJobProcessor> logger)
 {
-    /// <summary>Convention-based entry document for compilation.</summary>
+    /// <summary>
+    /// Preferred entry document name. When multiple <c>.tex</c> files contain
+    /// <c>\documentclass</c>, this name is chosen; otherwise the first match is used.
+    /// If no file contains <c>\documentclass</c>, this file is used as a fallback.
+    /// </summary>
     public const string EntryFileName = "main.tex";
 
     private static readonly TimeSpan PdfUrlExpiry = TimeSpan.FromMinutes(15);
@@ -50,14 +54,14 @@ public class CompileJobProcessor(
             Directory.CreateDirectory(tempDir);
             await DownloadProjectFilesAsync(job.ProjectId, tempDir, ct);
 
-            var entryFilePath = Path.Combine(tempDir, EntryFileName);
-            if (!File.Exists(entryFilePath))
+            var entryFile = FindEntryFile(tempDir);
+            if (entryFile is null)
             {
-                await FailAsync(job, $"Entry file '{EntryFileName}' not found in project.", "", "");
+                await FailAsync(job, "No LaTeX entry file found (no .tex file with \\documentclass).", "", "");
                 return;
             }
 
-            var result = await compiler.CompileAsync(tempDir, EntryFileName, ct);
+            var result = await compiler.CompileAsync(tempDir, entryFile, ct);
 
             job.StdOut = result.StdOut;
             job.StdErr = result.StdErr;
@@ -143,6 +147,36 @@ public class CompileJobProcessor(
             await using var target = new FileStream(targetPath, FileMode.Create, FileAccess.Write);
             await source.CopyToAsync(target, ct);
         }
+    }
+
+    /// <summary>
+    /// Returns the project entry file relative to <paramref name="tempDir"/>.
+    /// Picks the first <c>.tex</c> file containing <c>\documentclass</c>,
+    /// preferring <see cref="EntryFileName"/> when several match. Falls back to
+    /// <see cref="EntryFileName"/> if it exists on disk even without a
+    /// <c>\documentclass</c> declaration. Returns <c>null</c> when no entry file
+    /// can be determined.
+    /// </summary>
+    private static string? FindEntryFile(string tempDir)
+    {
+        string? firstMatch = null;
+        foreach (var file in Directory.EnumerateFiles(tempDir, "*.tex", SearchOption.AllDirectories))
+        {
+            var content = File.ReadAllText(file);
+            if (!content.Contains("\\documentclass")) continue;
+
+            var relativePath = Path.GetRelativePath(tempDir, file);
+            if (string.Equals(relativePath, EntryFileName, StringComparison.OrdinalIgnoreCase))
+                return relativePath;
+
+            firstMatch ??= relativePath;
+        }
+
+        if (firstMatch is not null)
+            return firstMatch;
+
+        var mainTexPath = Path.Combine(tempDir, EntryFileName);
+        return File.Exists(mainTexPath) ? EntryFileName : null;
     }
 
     private static async Task<bool> IsPdfAsync(string path, CancellationToken ct)

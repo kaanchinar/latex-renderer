@@ -46,7 +46,7 @@ public class CompileJobProcessorTests
         var job = SeedJob();
         SeedFile("main.tex", "\\documentclass{article}");
         SeedFile("sections/intro.tex", "intro");
-        _compiler.Behavior = workDir => FakeCompiler.Succeed(workDir);
+        _compiler.Behavior = (workDir, entryFile) => FakeCompiler.Succeed(workDir, entryFile);
 
         await _processor.ProcessAsync(job.Id);
 
@@ -68,7 +68,44 @@ public class CompileJobProcessorTests
         await _processor.ProcessAsync(job.Id);
 
         Assert.Equal(CompileStatus.Failed, job.Status);
-        Assert.Contains("main.tex", job.ErrorMessage);
+        Assert.Contains("No LaTeX entry file found", job.ErrorMessage);
+        Assert.Contains("\\documentclass", job.ErrorMessage);
+    }
+
+    [Fact]
+    public async Task Process_DetectsEntryFileFromDocumentClass_InDifferentlyNamedFile()
+    {
+        var job = SeedJob();
+        SeedFile("cv.tex", "\\documentclass{article}");
+        _compiler.Behavior = (workDir, entryFile) =>
+        {
+            Assert.Equal("cv.tex", entryFile);
+            return FakeCompiler.Succeed(workDir, entryFile);
+        };
+
+        await _processor.ProcessAsync(job.Id);
+
+        Assert.Equal(CompileStatus.Success, job.Status);
+        Assert.NotNull(job.OutputStorageKey);
+        Assert.True(_storage.Objects.ContainsKey(job.OutputStorageKey));
+        Assert.Equal("%PDF", Encoding.ASCII.GetString(_storage.Objects[job.OutputStorageKey][..4]));
+    }
+
+    [Fact]
+    public async Task Process_PrefersMainTex_WhenMultipleFilesContainDocumentClass()
+    {
+        var job = SeedJob();
+        SeedFile("cv.tex", "\\documentclass{article}");
+        SeedFile("main.tex", "\\documentclass{article}");
+        _compiler.Behavior = (workDir, entryFile) =>
+        {
+            Assert.Equal("main.tex", entryFile);
+            return FakeCompiler.Succeed(workDir, entryFile);
+        };
+
+        await _processor.ProcessAsync(job.Id);
+
+        Assert.Equal(CompileStatus.Success, job.Status);
     }
 
     [Fact]
@@ -91,7 +128,7 @@ public class CompileJobProcessorTests
     {
         var job = SeedJob();
         SeedFile("main.tex", "content");
-        _compiler.Behavior = FakeCompiler.TimeOut;
+        _compiler.Behavior = (workDir, entryFile) => FakeCompiler.TimeOut(workDir, entryFile);
 
         await _processor.ProcessAsync(job.Id);
 
@@ -104,7 +141,7 @@ public class CompileJobProcessorTests
     {
         var job = SeedJob();
         SeedFile("main.tex", "content");
-        _compiler.Behavior = FakeCompiler.ProduceGarbage;
+        _compiler.Behavior = (workDir, entryFile) => FakeCompiler.ProduceGarbage(workDir, entryFile);
 
         await _processor.ProcessAsync(job.Id);
 
@@ -124,7 +161,7 @@ public class CompileJobProcessorTests
     {
         var job = SeedJob();
         SeedFile("main.tex", "content");
-        _compiler.Behavior = workDir => FakeCompiler.Succeed(workDir, stdOut: "line1\nline2");
+        _compiler.Behavior = (workDir, entryFile) => FakeCompiler.Succeed(workDir, entryFile, stdOut: "line1\nline2");
 
         await _processor.ProcessAsync(job.Id);
 
@@ -140,7 +177,7 @@ public class CompileJobProcessorTests
     {
         var job = SeedJob();
         SeedFile("main.tex", "content");
-        _compiler.Behavior = FakeCompiler.Fail;
+        _compiler.Behavior = (workDir, entryFile) => FakeCompiler.Fail(workDir, entryFile);
 
         await _processor.ProcessAsync(job.Id);
 
@@ -155,7 +192,7 @@ public class CompileJobProcessorTests
     {
         var job = SeedJob();
         SeedFile("main.tex", "content");
-        _compiler.Behavior = workDir => FakeCompiler.Succeed(workDir);
+        _compiler.Behavior = (workDir, entryFile) => FakeCompiler.Succeed(workDir, entryFile);
 
         await _processor.ProcessAsync(job.Id);
 
@@ -260,32 +297,35 @@ public class CompileJobProcessorTests
 
     private sealed class FakeCompiler : ITectonicCompiler
     {
-        public Func<string, TectonicResult> Behavior { get; set; } = workDir => Succeed(workDir);
+        public Func<string, string, TectonicResult> Behavior { get; set; } =
+            (workDir, entryFile) => Succeed(workDir, entryFile);
 
-        public static TectonicResult Succeed(string workDir, string stdOut = "") => Produce(workDir, "%PDF-1.7 fake", stdOut);
+        public static TectonicResult Succeed(string workDir, string entryFile = "main.tex", string stdOut = "") =>
+            Produce(workDir, entryFile, "%PDF-1.7 fake", stdOut);
 
-        public static TectonicResult ProduceGarbage(string workDir) => Produce(workDir, "not a pdf");
+        public static TectonicResult ProduceGarbage(string workDir, string entryFile = "main.tex") =>
+            Produce(workDir, entryFile, "not a pdf");
 
-        public static TectonicResult Fail(string workDir) => new()
+        public static TectonicResult Fail(string workDir, string entryFile = "main.tex") => new()
         {
             ExitCode = 1,
             StdErr = "compile failed"
         };
 
-        public static TectonicResult TimeOut(string workDir) => new()
+        public static TectonicResult TimeOut(string workDir, string entryFile = "main.tex") => new()
         {
             ExitCode = -1,
             TimedOut = true
         };
 
-        private static TectonicResult Produce(string workDir, string content, string stdOut = "")
+        private static TectonicResult Produce(string workDir, string entryFile, string content, string stdOut = "")
         {
-            var pdfPath = Path.Combine(workDir, "main.pdf");
+            var pdfPath = Path.Combine(workDir, Path.ChangeExtension(Path.GetFileName(entryFile), ".pdf"));
             File.WriteAllText(pdfPath, content);
             return new TectonicResult { ExitCode = 0, OutputPdfPath = pdfPath, StdOut = stdOut };
         }
 
         public Task<TectonicResult> CompileAsync(string workingDirectory, string entryFile, CancellationToken ct = default) =>
-            Task.FromResult(Behavior(workingDirectory));
+            Task.FromResult(Behavior(workingDirectory, entryFile));
     }
 }
