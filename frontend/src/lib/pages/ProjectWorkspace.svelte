@@ -456,6 +456,7 @@
 
     try {
       await files.create(trimmed)
+      files.select(trimmed)
       newPath = ''
       showCreatePopover = false
     } catch (error) {
@@ -716,8 +717,9 @@
                 showCreatePopover = !showCreatePopover
                 createError = null
               }}
-              class="text-sm text-accent hover:opacity-90"
+              class="w-8 h-8 flex items-center justify-center border border-border bg-bg text-accent hover:bg-bg-subtle text-lg leading-none"
               aria-label="New file"
+              title="New file"
             >
               +
             </button>
