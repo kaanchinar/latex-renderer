@@ -137,6 +137,20 @@ public class CompileJobProcessorTests
     }
 
     [Fact]
+    public async Task Process_Timeout_RetriesOnceAndSucceeds()
+    {
+        var job = SeedJob();
+        SeedFile("main.tex", "content");
+        _compiler.Behavior = FakeCompiler.TimeOutThenSucceed();
+
+        await _processor.ProcessAsync(job.Id);
+
+        Assert.Equal(CompileStatus.Success, job.Status);
+        Assert.NotNull(job.OutputStorageKey);
+        Assert.Equal(2, _compiler.CallCount);
+    }
+
+    [Fact]
     public async Task Process_OutputNotPdf_Fails()
     {
         var job = SeedJob();
@@ -306,6 +320,8 @@ public class CompileJobProcessorTests
         public Func<string, string, TectonicResult> Behavior { get; set; } =
             (workDir, entryFile) => Succeed(workDir, entryFile);
 
+        public int CallCount { get; private set; }
+
         public static TectonicResult Succeed(string workDir, string entryFile = "main.tex", string stdOut = "") =>
             Produce(workDir, entryFile, "%PDF-1.7 fake", stdOut);
 
@@ -324,6 +340,16 @@ public class CompileJobProcessorTests
             TimedOut = true
         };
 
+        public static Func<string, string, TectonicResult> TimeOutThenSucceed()
+        {
+            var callCount = 0;
+            return (workDir, entryFile) =>
+            {
+                callCount++;
+                return callCount == 1 ? TimeOut(workDir, entryFile) : Succeed(workDir, entryFile);
+            };
+        }
+
         private static TectonicResult Produce(string workDir, string entryFile, string content, string stdOut = "")
         {
             var pdfPath = Path.Combine(workDir, Path.ChangeExtension(Path.GetFileName(entryFile), ".pdf"));
@@ -331,7 +357,10 @@ public class CompileJobProcessorTests
             return new TectonicResult { ExitCode = 0, OutputPdfPath = pdfPath, StdOut = stdOut };
         }
 
-        public Task<TectonicResult> CompileAsync(string workingDirectory, string entryFile, CancellationToken ct = default) =>
-            Task.FromResult(Behavior(workingDirectory, entryFile));
+        public Task<TectonicResult> CompileAsync(string workingDirectory, string entryFile, CancellationToken ct = default)
+        {
+            CallCount++;
+            return Task.FromResult(Behavior(workingDirectory, entryFile));
+        }
     }
 }

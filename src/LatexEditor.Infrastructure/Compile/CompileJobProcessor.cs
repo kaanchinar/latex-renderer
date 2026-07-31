@@ -63,6 +63,12 @@ public class CompileJobProcessor(
 
             var result = await compiler.CompileAsync(tempDir, entryFile, ct);
 
+            if (result.TimedOut)
+            {
+                logger.LogWarning("Compile job {JobId} timed out; retrying once", job.Id);
+                result = await compiler.CompileAsync(tempDir, entryFile, ct);
+            }
+
             job.StdOut = result.StdOut;
             job.StdErr = result.StdErr;
             await PublishOutputLinesAsync(job, result.StdOut, result.StdErr, ct);
