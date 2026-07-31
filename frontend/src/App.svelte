@@ -11,6 +11,15 @@
   const publicPaths = new Set(['/login', '/register'])
 
   let isWorkspace = $derived(!!workspaceId($path))
+  let isProjectsList = $derived(!isWorkspace && !publicPaths.has($path))
+
+  let mainClass = $derived(
+    isWorkspace
+      ? 'flex-1 flex flex-col overflow-hidden bg-bg'
+      : isProjectsList
+        ? 'flex-1 flex flex-col bg-bg'
+        : 'flex-1 flex items-center justify-center bg-bg-subtle p-4'
+  )
 
   $effect(() => {
     const state = $auth.state
@@ -49,11 +58,7 @@
     </div>
   </header>
 
-  <main
-    class={isWorkspace
-      ? 'flex-1 flex flex-col overflow-hidden bg-bg'
-      : 'flex-1 flex items-center justify-center bg-bg-subtle p-4'}
-  >
+  <main class={mainClass}>
     {#if $auth.state === 'unknown'}
       <div class="text-text-muted">Loading...</div>
     {:else if $path === '/login'}

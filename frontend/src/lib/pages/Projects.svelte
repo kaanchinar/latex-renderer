@@ -1,27 +1,87 @@
 <script lang="ts">
-  import { onMount } from 'svelte'
+  import { onMount, tick } from 'svelte'
   import { link, navigate } from '../router'
-  import { projects, type CompileStatus } from '../stores/projects'
+  import { projects, type CompileStatus, type Project } from '../stores/projects'
 
   let showNewForm = $state(false)
   let newName = $state('')
+  let newInputEl: HTMLInputElement | null = $state(null)
   let editingId = $state<string | null>(null)
   let editingName = $state('')
   let deletingId = $state<string | null>(null)
   let actionError = $state<string | null>(null)
+  let sortBy = $state<'name' | 'created'>('created')
+  let sortDir = $state<'asc' | 'desc'>('desc')
+  let submitting = $state(false)
 
   onMount(() => {
     projects.load()
   })
 
+  async function openNew() {
+    showNewForm = true
+    newName = ''
+    actionError = null
+    await tick()
+    newInputEl?.focus()
+  }
+
+  function closeNew() {
+    showNewForm = false
+    newName = ''
+  }
+
+  async function handleCreate(event: SubmitEvent) {
+    event.preventDefault()
+    const name = newName.trim()
+    if (!name || submitting) return
+    submitting = true
+    actionError = null
+    try {
+      const created = await projects.create(name)
+      closeNew()
+      navigate(`/projects/${created.id}`)
+    } catch (error) {
+      actionError = error instanceof Error ? error.message : 'Failed to create project.'
+    } finally {
+      submitting = false
+    }
+  }
+
+  function handleNewKeydown(event: KeyboardEvent) {
+    if (event.key === 'Escape') {
+      event.preventDefault()
+      closeNew()
+    }
+  }
+
+  function toggleSort(column: 'name' | 'created') {
+    if (sortBy === column) {
+      sortDir = sortDir === 'asc' ? 'desc' : 'asc'
+    } else {
+      sortBy = column
+      sortDir = column === 'name' ? 'asc' : 'desc'
+    }
+  }
+
+  function compareProjects(a: Project, b: Project): number {
+    if (sortBy === 'name') {
+      return a.name.localeCompare(b.name)
+    }
+    return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+  }
+
+  let sortedItems = $derived(
+    $projects.items.slice().sort((a, b) => {
+      const cmp = compareProjects(a, b)
+      return sortDir === 'asc' ? cmp : -cmp
+    })
+  )
+
   function formatDate(value: string): string {
     const date = new Date(value)
-    const dateStr = date.toLocaleDateString('en-CA')
-    const timeStr = date.toLocaleTimeString('en-GB', {
-      hour: '2-digit',
-      minute: '2-digit'
-    })
-    return `${dateStr} ${timeStr}`
+    const pad = (n: number) => String(n).padStart(2, '0')
+    return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}`
   }
 
   function statusLabel(status: CompileStatus): string {
@@ -43,35 +103,20 @@
     }
   }
 
-  async function handleCreate(event: SubmitEvent) {
-    event.preventDefault()
-    if (!newName.trim()) return
-
-    try {
-      await projects.create(newName.trim())
-      newName = ''
-      showNewForm = false
-      actionError = null
-    } catch (error) {
-      actionError = error instanceof Error ? error.message : 'Failed to create project.'
-    }
-  }
-
-  function startRename(id: string, name: string) {
-    editingId = id
-    editingName = name
+  function startRename(project: Project) {
+    editingId = project.id
+    editingName = project.name
     deletingId = null
     actionError = null
   }
 
   async function handleRename(id: string) {
-    if (!editingName.trim()) return
-
+    const name = editingName.trim()
+    if (!name) return
     try {
-      await projects.rename(id, editingName.trim())
+      await projects.rename(id, name)
       editingId = null
       editingName = ''
-      actionError = null
     } catch (error) {
       actionError = error instanceof Error ? error.message : 'Failed to rename project.'
     }
@@ -92,7 +137,6 @@
     try {
       await projects.remove(id)
       deletingId = null
-      actionError = null
     } catch (error) {
       actionError = error instanceof Error ? error.message : 'Failed to delete project.'
     }
@@ -103,175 +147,271 @@
   }
 </script>
 
-<div class="w-full max-w-[880px] border border-border bg-bg p-6">
-  <div class="flex items-center justify-between mb-4">
-    <h1 class="text-lg font-semibold text-text">Projects</h1>
-    <button
-      type="button"
-      onclick={() => {
-        showNewForm = true
-        actionError = null
-      }}
-      class="border border-accent bg-accent px-3 py-1.5 text-white hover:opacity-90 disabled:opacity-50"
-      disabled={showNewForm}
-    >
-      New project
-    </button>
+<div class="w-full max-w-[1100px] px-6 py-6">
+  <div class="mb-4 flex items-baseline justify-between">
+    <div class="flex items-baseline gap-2">
+      <h1 class="text-xl font-normal text-text">Projects</h1>
+      <span class="text-sm text-text-muted" data-testid="projects-count">
+        {$projects.items.length}
+        {$projects.items.length === 1 ? 'project' : 'projects'}
+      </span>
+    </div>
+    {#if !showNewForm}
+      <button
+        type="button"
+        data-testid="new-project-button"
+        onclick={openNew}
+        class="border border-accent bg-accent px-3 py-1.5 text-white hover:opacity-90"
+      >
+        New project
+      </button>
+    {/if}
   </div>
 
   {#if $projects.error || actionError}
-    <div class="mb-4 border border-error p-2 text-error">
+    <div
+      class="mb-4 border border-error p-2 text-error"
+      data-testid="projects-error"
+    >
       {$projects.error ?? actionError}
     </div>
   {/if}
 
   {#if showNewForm}
-    <form onsubmit={handleCreate} class="mb-4 flex items-center gap-2 border border-border bg-bg-subtle p-2">
+    <form
+      onsubmit={handleCreate}
+      class="mb-4 border border-border bg-bg-subtle p-4"
+      data-testid="new-project-panel"
+    >
+      <label
+        for="project-name-input"
+        class="mb-1 block text-sm text-text-muted"
+      >
+        Project name
+      </label>
       <input
+        id="project-name-input"
         type="text"
+        data-testid="project-name-input"
+        bind:this={newInputEl}
         bind:value={newName}
-        placeholder="Project name"
-        class="flex-1 border border-border bg-bg p-2 text-text focus:outline-none focus:border-accent"
+        onkeydown={handleNewKeydown}
+        placeholder="e.g. research-paper"
+        class="block w-full max-w-[480px] border border-border bg-bg p-2 text-text focus:outline-none focus:border-accent"
+        disabled={submitting}
       />
-      <button
-        type="submit"
-        disabled={!newName.trim() || $projects.loading}
-        class="border border-accent bg-accent px-3 py-2 text-white hover:opacity-90 disabled:opacity-50"
-      >
-        Create
-      </button>
-      <button
-        type="button"
-        onclick={() => {
-          showNewForm = false
-          newName = ''
-        }}
-        class="border border-border bg-bg px-3 py-2 text-text hover:bg-bg-subtle"
-      >
-        Cancel
-      </button>
+      <p class="mt-1 text-xs text-text-muted">You can rename it later.</p>
+      <div class="mt-3 flex items-center gap-2">
+        <button
+          type="submit"
+          data-testid="create-project-button"
+          disabled={!newName.trim() || submitting}
+          class="border border-accent bg-accent px-3 py-1.5 text-white hover:opacity-90 disabled:opacity-50"
+        >
+          Create
+        </button>
+        <button
+          type="button"
+          data-testid="cancel-new-project-button"
+          onclick={closeNew}
+          disabled={submitting}
+          class="border border-border bg-bg px-3 py-1.5 text-text hover:bg-bg-subtle disabled:opacity-50"
+        >
+          Cancel
+        </button>
+      </div>
     </form>
   {/if}
 
   {#if $projects.loading && $projects.items.length === 0}
-    <div class="py-8 text-center text-text-muted">Loading projects...</div>
+    <div class="border border-border" data-testid="projects-loading">
+      {#each Array.from({ length: 5 }) as _, i (i)}
+        <div
+          class="grid h-10 grid-cols-[1fr_140px_160px_180px] items-center border-b border-border px-3 last:border-b-0"
+        >
+          <div class="h-3 w-40 bg-bg-subtle"></div>
+          <div class="h-3 w-16 bg-bg-subtle"></div>
+          <div class="h-3 w-32 bg-bg-subtle"></div>
+          <div class="h-3 w-20 justify-self-end bg-bg-subtle"></div>
+        </div>
+      {/each}
+    </div>
   {:else if $projects.items.length === 0}
-    <div class="py-8 text-center text-text-muted">
-      No projects yet. Create your first project.
+    <div
+      class="flex flex-col items-center justify-center gap-2 border border-border bg-bg p-8 text-center"
+      data-testid="projects-empty"
+    >
+      <h2 class="text-base text-text">No projects yet</h2>
+      <p class="text-sm text-text-muted">
+        Create your first LaTeX project to get started.
+      </p>
+      <button
+        type="button"
+        data-testid="empty-new-project-button"
+        onclick={openNew}
+        class="mt-2 border border-accent bg-accent px-3 py-1.5 text-white hover:opacity-90"
+      >
+        New project
+      </button>
     </div>
   {:else}
-    <table class="w-full border-collapse border border-border text-left">
-      <thead>
-        <tr class="border-b border-border bg-bg-subtle text-sm text-text-muted">
-          <th class="p-2 font-medium">Name</th>
-          <th class="p-2 font-medium">Last compile</th>
-          <th class="p-2 font-medium">Created</th>
-          <th class="p-2 font-medium text-right">Actions</th>
-        </tr>
-      </thead>
-      <tbody>
-        {#each $projects.items as project (project.id)}
-          <tr class="border-b border-border last:border-b-0">
-            {#if editingId === project.id}
-              <td class="p-2">
-                <input
-                  type="text"
-                  bind:value={editingName}
-                  class="w-full border border-border bg-bg p-2 text-text focus:outline-none focus:border-accent"
-                />
-              </td>
-              <td class="p-2">
-                <span class="border px-2 py-0.5 text-xs {statusClass(project.lastCompileStatus)}">
-                  {statusLabel(project.lastCompileStatus)}
-                </span>
-              </td>
-              <td class="p-2 text-text-muted">{formatDate(project.createdAt)}</td>
-              <td class="p-2 text-right">
-                <button
-                  type="button"
-                  onclick={() => handleRename(project.id)}
-                  disabled={!editingName.trim()}
-                  class="mr-2 text-accent hover:underline disabled:opacity-50"
-                >
-                  Save
-                </button>
-                <button
-                  type="button"
-                  onclick={cancelRename}
-                  class="text-text-muted hover:underline"
-                >
-                  Cancel
-                </button>
-              </td>
-            {:else if deletingId === project.id}
-              <td class="p-2">
-                <a
-                  use:link
-                  href="/projects/{project.id}"
-                  class="text-accent hover:underline"
-                >
-                  {project.name}
-                </a>
-              </td>
-              <td class="p-2">
-                <span class="border px-2 py-0.5 text-xs {statusClass(project.lastCompileStatus)}">
-                  {statusLabel(project.lastCompileStatus)}
-                </span>
-              </td>
-              <td class="p-2 text-text-muted">{formatDate(project.createdAt)}</td>
-              <td class="p-2 text-right">
-                <span class="text-text-muted">Delete?</span>
-                <button
-                  type="button"
-                  onclick={() => handleDelete(project.id)}
-                  class="ml-2 text-error hover:underline"
-                >
-                  Yes
-                </button>
-                <button
-                  type="button"
-                  onclick={cancelDelete}
-                  class="ml-2 text-text-muted hover:underline"
-                >
-                  No
-                </button>
-              </td>
-            {:else}
-              <td class="p-2">
-                <a
-                  use:link
-                  href="/projects/{project.id}"
-                  class="text-accent hover:underline"
-                >
-                  {project.name}
-                </a>
-              </td>
-              <td class="p-2">
-                <span class="border px-2 py-0.5 text-xs {statusClass(project.lastCompileStatus)}">
-                  {statusLabel(project.lastCompileStatus)}
-                </span>
-              </td>
-              <td class="p-2 text-text-muted">{formatDate(project.createdAt)}</td>
-              <td class="p-2 text-right">
-                <button
-                  type="button"
-                  onclick={() => startRename(project.id, project.name)}
-                  class="mr-3 text-accent hover:underline"
-                >
-                  Rename
-                </button>
-                <button
-                  type="button"
-                  onclick={() => startDelete(project.id)}
-                  class="text-error hover:underline"
-                >
-                  Delete
-                </button>
-              </td>
-            {/if}
-          </tr>
-        {/each}
-      </tbody>
-    </table>
+    <div class="border border-border" data-testid="projects-table">
+      <div
+        class="grid grid-cols-[1fr_140px_160px_180px] border-b border-border bg-bg-subtle text-xs uppercase tracking-wide text-text-muted"
+      >
+        <button
+          type="button"
+          data-testid="sort-name-header"
+          onclick={() => toggleSort('name')}
+          class="flex items-center gap-1 px-3 py-2 text-left hover:text-text"
+        >
+          <span>Name</span>
+          {#if sortBy === 'name'}
+            <span aria-hidden="true">{sortDir === 'asc' ? '▲' : '▼'}</span>
+          {/if}
+        </button>
+        <div class="px-3 py-2">Last compile</div>
+        <button
+          type="button"
+          data-testid="sort-created-header"
+          onclick={() => toggleSort('created')}
+          class="flex items-center gap-1 px-3 py-2 text-left hover:text-text"
+        >
+          <span>Created</span>
+          {#if sortBy === 'created'}
+            <span aria-hidden="true">{sortDir === 'asc' ? '▲' : '▼'}</span>
+          {/if}
+        </button>
+        <div class="px-3 py-2 text-right">Actions</div>
+      </div>
+      {#each sortedItems as project (project.id)}
+        <div
+          class="group grid h-10 grid-cols-[1fr_140px_160px_180px] items-center border-b border-border text-sm last:border-b-0 hover:bg-bg-subtle"
+          data-testid="project-row"
+        >
+          {#if editingId === project.id}
+            <div class="flex items-center px-3">
+              <input
+                type="text"
+                data-testid="rename-input"
+                bind:value={editingName}
+                class="w-full border border-border bg-bg p-1 text-text focus:outline-none focus:border-accent"
+              />
+            </div>
+            <div class="px-3">
+              <span
+                class="border px-2 py-0.5 text-xs {statusClass(
+                  project.lastCompileStatus
+                )}"
+              >
+                {statusLabel(project.lastCompileStatus)}
+              </span>
+            </div>
+            <div class="px-3 text-text-muted">{formatDate(project.createdAt)}</div>
+            <div class="flex items-center justify-end gap-2 px-3">
+              <button
+                type="button"
+                data-testid="rename-save"
+                onclick={() => handleRename(project.id)}
+                disabled={!editingName.trim()}
+                class="border border-accent bg-accent px-2 py-0.5 text-xs text-white hover:opacity-90 disabled:opacity-50"
+              >
+                Save
+              </button>
+              <button
+                type="button"
+                data-testid="rename-cancel"
+                onclick={cancelRename}
+                class="text-xs text-text-muted hover:underline"
+              >
+                Cancel
+              </button>
+            </div>
+          {:else if deletingId === project.id}
+            <div class="flex items-center px-3 text-text">
+              <span>Delete {project.name}? This cannot be undone.</span>
+            </div>
+            <div class="px-3">
+              <span
+                class="border px-2 py-0.5 text-xs {statusClass(
+                  project.lastCompileStatus
+                )}"
+              >
+                {statusLabel(project.lastCompileStatus)}
+              </span>
+            </div>
+            <div class="px-3 text-text-muted">{formatDate(project.createdAt)}</div>
+            <div class="flex items-center justify-end gap-2 px-3">
+              <button
+                type="button"
+                data-testid="delete-confirm"
+                onclick={() => handleDelete(project.id)}
+                class="border border-error bg-bg px-2 py-0.5 text-xs text-error hover:bg-error hover:text-white"
+              >
+                Delete
+              </button>
+              <button
+                type="button"
+                data-testid="delete-cancel"
+                onclick={cancelDelete}
+                class="text-xs text-text-muted hover:underline"
+              >
+                Cancel
+              </button>
+            </div>
+          {:else}
+            <div class="flex h-full flex-col justify-center px-3 leading-tight">
+              <a
+                use:link
+                data-testid="project-link"
+                href="/projects/{project.id}"
+                class="text-accent hover:underline"
+              >
+                {project.name}
+              </a>
+              <span class="text-xs text-text-muted" data-testid="project-slug">
+                {project.slug}
+              </span>
+            </div>
+            <div class="px-3">
+              <span
+                class="border px-2 py-0.5 text-xs {statusClass(
+                  project.lastCompileStatus
+                )}"
+              >
+                {statusLabel(project.lastCompileStatus)}
+              </span>
+            </div>
+            <div class="px-3 text-text-muted">{formatDate(project.createdAt)}</div>
+            <div class="flex items-center justify-end gap-2 px-3">
+              <a
+                use:link
+                data-testid="row-action-open"
+                href="/projects/{project.id}"
+                class="invisible text-xs text-accent hover:underline group-hover:visible"
+              >
+                Open
+              </a>
+              <button
+                type="button"
+                data-testid="row-action-rename"
+                onclick={() => startRename(project)}
+                class="invisible text-xs text-text-muted hover:text-text group-hover:visible"
+              >
+                Rename
+              </button>
+              <button
+                type="button"
+                data-testid="row-action-delete"
+                onclick={() => startDelete(project.id)}
+                class="invisible text-xs text-error hover:underline group-hover:visible"
+              >
+                Delete
+              </button>
+            </div>
+          {/if}
+        </div>
+      {/each}
+    </div>
   {/if}
 </div>
