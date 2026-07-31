@@ -97,9 +97,12 @@ function createFiles() {
 
   async function create(path: string) {
     const projectId = getProjectId()
+    const content = path.endsWith('.tex')
+      ? '\\documentclass{article}\n\\begin{document}\n\n\\end{document}\n'
+      : `% ${path}`
     await apiFetch(`/api/projects/${projectId}/files/${encodeURIComponent(path)}`, {
       method: 'PUT',
-      body: { content: `% ${path}` }
+      body: { content }
     })
     await load(projectId)
   }
