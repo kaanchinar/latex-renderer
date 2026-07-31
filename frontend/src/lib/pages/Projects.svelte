@@ -152,7 +152,7 @@
   }
 </script>
 
-<div class="w-full max-w-[1100px] px-6 py-6">
+<div class="w-full px-6 py-6">
   <div class="mb-4 flex items-baseline justify-between">
     <div class="flex items-baseline gap-2">
       <h1 class="text-xl font-normal text-text">Projects</h1>
@@ -291,11 +291,20 @@
       </div>
       {#each sortedItems as project (project.id)}
         <div
-          class="group grid h-10 grid-cols-[1fr_140px_160px_180px] items-center border-b border-border text-sm last:border-b-0 hover:bg-bg-subtle"
+          class="group grid h-10 grid-cols-[1fr_140px_160px_180px] items-center border-b border-border text-sm last:border-b-0 cursor-pointer hover:bg-bg-subtle"
           data-testid="project-row"
+          onclick={() => navigate(`/projects/${project.id}`)}
+          onkeydown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault()
+              navigate(`/projects/${project.id}`)
+            }
+          }}
+          role="button"
+          tabindex="0"
         >
           {#if editingId === project.id}
-            <div class="flex items-center px-3">
+            <div class="flex items-center px-3" onclick={(e) => e.stopPropagation()}>
               <input
                 type="text"
                 data-testid="rename-input"
@@ -303,7 +312,7 @@
                 class="w-full border border-border bg-bg p-1 text-text focus:outline-none focus:border-accent"
               />
             </div>
-            <div class="px-3">
+            <div class="px-3" onclick={(e) => e.stopPropagation()}>
               <span
                 class="border px-2 py-0.5 text-xs {statusClass(
                   project.lastCompileStatus
@@ -312,8 +321,8 @@
                 {statusLabel(project.lastCompileStatus)}
               </span>
             </div>
-            <div class="px-3 text-text-muted">{formatDate(project.createdAt)}</div>
-            <div class="flex items-center justify-end gap-2 px-3">
+            <div class="px-3 text-text-muted" onclick={(e) => e.stopPropagation()}>{formatDate(project.createdAt)}</div>
+            <div class="flex items-center justify-end gap-2 px-3" onclick={(e) => e.stopPropagation()}>
               <button
                 type="button"
                 data-testid="rename-save"
@@ -333,10 +342,10 @@
               </button>
             </div>
           {:else if deletingId === project.id}
-            <div class="flex items-center px-3 text-text">
+            <div class="flex items-center px-3 text-text" onclick={(e) => e.stopPropagation()}>
               <span>Delete {project.name}? This cannot be undone.</span>
             </div>
-            <div class="px-3">
+            <div class="px-3" onclick={(e) => e.stopPropagation()}>
               <span
                 class="border px-2 py-0.5 text-xs {statusClass(
                   project.lastCompileStatus
@@ -345,8 +354,8 @@
                 {statusLabel(project.lastCompileStatus)}
               </span>
             </div>
-            <div class="px-3 text-text-muted">{formatDate(project.createdAt)}</div>
-            <div class="flex items-center justify-end gap-2 px-3">
+            <div class="px-3 text-text-muted" onclick={(e) => e.stopPropagation()}>{formatDate(project.createdAt)}</div>
+            <div class="flex items-center justify-end gap-2 px-3" onclick={(e) => e.stopPropagation()}>
               <button
                 type="button"
                 data-testid="delete-confirm"
@@ -366,14 +375,9 @@
             </div>
           {:else}
             <div class="flex h-full flex-col justify-center px-3 leading-tight">
-              <a
-                use:link
-                data-testid="project-link"
-                href="/projects/{project.id}"
-                class="text-accent hover:underline"
-              >
+              <span class="text-text font-medium">
                 {project.name}
-              </a>
+              </span>
               <span class="text-xs text-text-muted" data-testid="project-slug">
                 {project.slug}
               </span>
@@ -389,18 +393,24 @@
             </div>
             <div class="px-3 text-text-muted">{formatDate(project.createdAt)}</div>
             <div class="flex items-center justify-end gap-2 px-3">
-              <a
-                use:link
+              <button
+                type="button"
                 data-testid="row-action-open"
-                href="/projects/{project.id}"
+                onclick={(e) => {
+                  e.stopPropagation()
+                  navigate(`/projects/${project.id}`)
+                }}
                 class="invisible text-xs text-accent hover:underline group-hover:visible"
               >
                 Open
-              </a>
+              </button>
               <button
                 type="button"
                 data-testid="row-action-rename"
-                onclick={() => startRename(project)}
+                onclick={(e) => {
+                  e.stopPropagation()
+                  startRename(project)
+                }}
                 class="invisible text-xs text-text-muted hover:text-text group-hover:visible"
               >
                 Rename
@@ -408,7 +418,10 @@
               <button
                 type="button"
                 data-testid="row-action-delete"
-                onclick={() => startDelete(project.id)}
+                onclick={(e) => {
+                  e.stopPropagation()
+                  startDelete(project.id)
+                }}
                 class="invisible text-xs text-error hover:underline group-hover:visible"
               >
                 Delete
