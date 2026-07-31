@@ -5,11 +5,12 @@
     min: number
     max: number
     onChange: (value: number) => void
+    onEnd?: () => void
     onReset?: () => void
     testid?: string
   }
 
-  let { direction, value, min, max, onChange, onReset, testid }: Props = $props()
+  let { direction, value, min, max, onChange, onEnd, onReset, testid }: Props = $props()
 
   let dragging = $state(false)
   let startPos = 0
@@ -38,6 +39,7 @@
     const target = event.currentTarget as HTMLDivElement
     dragging = false
     target.releasePointerCapture(event.pointerId)
+    onEnd?.()
   }
 </script>
 

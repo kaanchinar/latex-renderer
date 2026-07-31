@@ -1,10 +1,12 @@
 <script lang="ts">
+  import { onDestroy } from 'svelte'
   import { path, link, workspaceId } from '../router'
   import { files, type ProjectFile } from '../stores/files'
   import { compile } from '../stores/compile'
   import { parseLogErrors } from '../editor/logErrors'
   import * as hub from '../hub'
   import { apiFetch, ApiError } from '../api/client'
+  import { push as pushToast } from '../stores/toast'
   import Editor from '../editor/Editor.svelte'
   import LogsDrawer from '../components/LogsDrawer.svelte'
   import PdfViewer from '../pdf/PdfViewer.svelte'
@@ -61,13 +63,19 @@
   let sidebarWidth = $state(loadSize('lr-sidebar', 240))
   let editorWidth = $state(loadSize('lr-editor', 0))
   let logsHeight = $state(loadSize('lr-logs', 160))
+  let windowHeight = $state(
+    typeof window !== 'undefined' ? window.innerHeight : 0
+  )
 
   const SPLITTER = 6
 
-  let effectiveSidebarWidth = $derived(sidebarCollapsed ? 0 : sidebarWidth)
-  let effectiveEditorWidth = $derived(
-    editorWidth > 0 ? editorWidth : defaultEditorWidth()
+  let effectiveSidebarWidth = $derived(
+    sidebarCollapsed ? 0 : clampSidebarWidth(sidebarWidth)
   )
+  let effectiveEditorWidth = $derived(
+    editorWidth > 0 ? clampEditorWidth(editorWidth) : defaultEditorWidth()
+  )
+  let effectiveLogsHeight = $derived(clampLogsHeight(logsHeight))
 
   let fileOpen = $derived($files.activePath !== null)
 
@@ -143,43 +151,55 @@
     )
   }
 
+  function maxLogsHeight() {
+    return Math.max(120, Math.floor(windowHeight / 2))
+  }
+
   function clampLogsHeight(h: number) {
-    const max = Math.max(120, Math.floor(window.innerHeight / 2))
-    return Math.max(120, Math.min(h, max))
+    return Math.max(120, Math.min(h, maxLogsHeight()))
   }
 
   function handleSidebarResize(w: number) {
     sidebarCollapsed = false
     sidebarWidth = clampSidebarWidth(w)
-    saveSize('lr-sidebar', sidebarWidth)
+  }
+
+  function handleSidebarResizeEnd() {
+    saveSize('lr-sidebar', effectiveSidebarWidth)
     saveBool('lr-sidebar-collapsed', false)
   }
 
   function resetSidebar() {
     sidebarCollapsed = false
     sidebarWidth = 240
-    saveSize('lr-sidebar', 240)
+    saveSize('lr-sidebar', effectiveSidebarWidth)
     saveBool('lr-sidebar-collapsed', false)
   }
 
   function handleEditorResize(w: number) {
     editorWidth = clampEditorWidth(w)
-    saveSize('lr-editor', editorWidth)
+  }
+
+  function handleEditorResizeEnd() {
+    saveSize('lr-editor', effectiveEditorWidth)
   }
 
   function resetEditor() {
     editorWidth = defaultEditorWidth()
-    saveSize('lr-editor', editorWidth)
+    saveSize('lr-editor', effectiveEditorWidth)
   }
 
   function handleLogsResize(h: number) {
     logsHeight = clampLogsHeight(h)
-    saveSize('lr-logs', logsHeight)
+  }
+
+  function handleLogsResizeEnd() {
+    saveSize('lr-logs', effectiveLogsHeight)
   }
 
   function resetLogsHeight() {
     logsHeight = 160
-    saveSize('lr-logs', 160)
+    saveSize('lr-logs', effectiveLogsHeight)
   }
 
   function toggleSidebar() {
@@ -256,6 +276,14 @@
     if ($compile.status === 'failed') {
       logsOpen = true
     }
+  })
+
+  $effect(() => {
+    function onResize() {
+      windowHeight = window.innerHeight
+    }
+    window.addEventListener('resize', onResize)
+    return () => window.removeEventListener('resize', onResize)
   })
 
   let activeErrors = $derived(
@@ -486,7 +514,9 @@
       scheduleCompile()
       setSaveState('saved')
     } catch {
+      savePending = { path, content }
       setSaveState('idle')
+      pushToast('Save failed — retrying')
     }
   }
 
@@ -585,6 +615,13 @@
       action: toggleTheme
     }
   ])
+
+  onDestroy(() => {
+    if (saveTimeout) clearTimeout(saveTimeout)
+    if (saveStateTimeout) clearTimeout(saveStateTimeout)
+    if (compileTimeout) clearTimeout(compileTimeout)
+    if (statsTimeout) clearTimeout(statsTimeout)
+  })
 </script>
 
 <div class="flex-1 flex flex-col min-h-0">
@@ -625,7 +662,7 @@
         <div class="flex items-center gap-3">
           {#if $compile.status !== 'idle'}
             <span
-              data-testid="compile-status"
+              data-testid="compile-status-menubar"
               class="text-xs"
               class:text-accent={$compile.status === 'running' || $compile.status === 'queued'}
               class:text-success={$compile.status === 'success'}
@@ -803,10 +840,11 @@
         {#if !sidebarCollapsed}
           <Splitter
             direction="vertical"
-            value={sidebarWidth}
+            value={effectiveSidebarWidth}
             min={160}
             max={maxSidebarWidth()}
             onChange={handleSidebarResize}
+            onEnd={handleSidebarResizeEnd}
             onReset={resetSidebar}
             testid="sidebar-splitter"
           />
@@ -852,6 +890,7 @@
             min={300}
             max={maxEditorWidth()}
             onChange={handleEditorResize}
+            onEnd={handleEditorResizeEnd}
             onReset={resetEditor}
             testid="editor-splitter"
           />
@@ -866,14 +905,15 @@
       {#if logsOpen}
         <Splitter
           direction="horizontal"
-          value={logsHeight}
+          value={effectiveLogsHeight}
           min={120}
-          max={Math.max(120, Math.floor(window.innerHeight / 2))}
+          max={maxLogsHeight()}
           onChange={handleLogsResize}
+          onEnd={handleLogsResizeEnd}
           onReset={resetLogsHeight}
           testid="logs-splitter"
         />
-        <div style="height: {logsHeight}px">
+        <div style="height: {effectiveLogsHeight}px">
           <LogsDrawer bind:open={logsOpen} onClear={() => compile.clearLogs()} />
         </div>
       {/if}
@@ -899,7 +939,7 @@
           </button>
           {#if $compile.status !== 'idle'}
             <span
-              data-testid="compile-status"
+              data-testid="compile-status-statusbar"
               class="text-xs"
               class:text-accent={$compile.status === 'running' || $compile.status === 'queued'}
               class:text-success={$compile.status === 'success'}

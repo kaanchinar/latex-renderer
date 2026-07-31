@@ -100,7 +100,32 @@ export async function joinProject(projectId: string): Promise<void> {
 }
 
 export function leaveCurrentProject(): void {
+  const hadProject = currentProjectId !== null
   currentProjectId = null
+  if (!hadProject || !connection) return
+  if (connection.state === HubConnectionState.Disconnected) {
+    connection = null
+    return
+  }
+  connection
+    .stop()
+    .then(() => {
+      connection = null
+    })
+    .catch(() => {
+      connection = null
+    })
+}
+
+export async function disconnect(): Promise<void> {
+  currentProjectId = null
+  if (!connection) return
+  if (connection.state === HubConnectionState.Disconnected) {
+    connection = null
+    return
+  }
+  await connection.stop()
+  connection = null
 }
 
 export async function triggerCompile(projectId: string): Promise<string> {

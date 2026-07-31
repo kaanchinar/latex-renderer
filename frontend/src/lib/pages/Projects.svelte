@@ -13,6 +13,7 @@
   let sortBy = $state<'name' | 'created'>('created')
   let sortDir = $state<'asc' | 'desc'>('desc')
   let submitting = $state(false)
+  let renaming = $state(false)
 
   onMount(() => {
     projects.load()
@@ -112,13 +113,17 @@
 
   async function handleRename(id: string) {
     const name = editingName.trim()
-    if (!name) return
+    if (!name || renaming) return
+    renaming = true
+    actionError = null
     try {
       await projects.rename(id, name)
       editingId = null
       editingName = ''
     } catch (error) {
       actionError = error instanceof Error ? error.message : 'Failed to rename project.'
+    } finally {
+      renaming = false
     }
   }
 
@@ -313,7 +318,7 @@
                 type="button"
                 data-testid="rename-save"
                 onclick={() => handleRename(project.id)}
-                disabled={!editingName.trim()}
+                disabled={!editingName.trim() || renaming}
                 class="border border-accent bg-accent px-2 py-0.5 text-xs text-white hover:opacity-90 disabled:opacity-50"
               >
                 Save

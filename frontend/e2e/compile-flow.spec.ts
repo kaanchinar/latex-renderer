@@ -46,10 +46,10 @@ test('register, create project, write LaTeX, compile, and render PDF', async ({
 
   const compileButton = page.getByTestId('compile-button')
   const successStatus = page
-    .getByTestId('compile-status')
+    .getByTestId('compile-status-menubar')
     .filter({ hasText: /compiled/i })
   const failedStatus = page
-    .getByTestId('compile-status')
+    .getByTestId('compile-status-menubar')
     .filter({ hasText: /failed/i })
 
   await compileButton.click()

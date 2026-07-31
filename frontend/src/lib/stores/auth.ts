@@ -1,6 +1,7 @@
 import { writable } from 'svelte/store'
 import { apiFetch, ApiError } from '../api/client'
 import { navigate } from '../router'
+import * as hub from '../hub'
 
 export type User = {
   id: string
@@ -61,9 +62,9 @@ function createAuth() {
       await apiFetch('/api/auth/logout', { method: 'POST' })
     } catch {
       // ignore; force local sign-out regardless
-    } finally {
-      setLoggedOut()
     }
+    await hub.disconnect().catch(() => {})
+    setLoggedOut()
   }
 
   initialize()
