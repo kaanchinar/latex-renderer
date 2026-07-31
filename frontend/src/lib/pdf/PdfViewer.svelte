@@ -61,6 +61,9 @@
   })
 
   $effect(() => {
+    // Explicitly depend on scale/pageNumber so zoom and navigation re-render.
+    const _scale = scale
+    const _page = pageNumber
     if (!pdf || !baseViewport || !canvasEl) return
     renderPage()
   })
@@ -221,7 +224,8 @@
     <a
       href={url ?? undefined}
       data-testid="pdf-download"
-      download
+      target="_blank"
+      rel="noopener noreferrer"
       class="text-xs text-accent hover:opacity-90 disabled:opacity-40 flex items-center gap-1"
       class:pointer-events-none={!url}
     >

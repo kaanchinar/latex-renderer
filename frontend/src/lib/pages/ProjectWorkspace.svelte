@@ -68,7 +68,6 @@
 
   let openMenu = $state<string | null>(null)
   let editorRef = $state<Editor | null>(null)
-  let downloadAnchor: HTMLAnchorElement | null = $state(null)
 
   let mainEl: HTMLElement | null = $state(null)
   let mainWidth = $state(0)
@@ -581,9 +580,8 @@
   }
 
   function downloadCurrentPdf() {
-    if (!viewerUrl || !downloadAnchor) return
-    downloadAnchor.href = viewerUrl
-    downloadAnchor.click()
+    if (!viewerUrl) return
+    window.open(viewerUrl, '_blank', 'noopener,noreferrer')
   }
 
   function deleteCurrentFile() {
@@ -715,14 +713,6 @@
           </button>
         </div>
       </div>
-
-      <a
-        bind:this={downloadAnchor}
-        href={viewerUrl ?? undefined}
-        download={`${project?.name ?? 'document'}.pdf`}
-        class="hidden"
-        aria-hidden="true"
-      ></a>
 
       <!-- Workspace -->
       <div class="flex-1 min-h-0 flex">
