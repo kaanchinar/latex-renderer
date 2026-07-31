@@ -21,7 +21,7 @@ public class ProjectService(IProjectRepository repo)
         {
             Id = Guid.NewGuid(),
             Name = dto.Name,
-            Slug = GenerateSlug(dto.Name),
+            Slug = await GenerateUniqueSlugAsync(ownerId, GenerateSlug(dto.Name)),
             OwnerId = ownerId
         };
 
@@ -102,5 +102,20 @@ public class ProjectService(IProjectRepository repo)
         }
 
         return builder.ToString().TrimEnd('-');
+    }
+
+    private async Task<string> GenerateUniqueSlugAsync(string ownerId, string baseSlug)
+    {
+        var existing = await repo.GetByOwnerAsync(ownerId);
+        var existingSlugs = existing.Select(p => p.Slug).ToHashSet();
+        if (!existingSlugs.Contains(baseSlug)) return baseSlug;
+
+        var suffix = 2;
+        while (true)
+        {
+            var candidate = $"{baseSlug}-{suffix}";
+            if (!existingSlugs.Contains(candidate)) return candidate;
+            suffix++;
+        }
     }
 }

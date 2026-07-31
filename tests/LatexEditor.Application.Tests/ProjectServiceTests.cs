@@ -72,6 +72,28 @@ public class ProjectServiceTests
         Assert.Equal("my-thesis-draft", result.Slug);
     }
 
+    [Fact]
+    public async Task Create_SameNameForSameOwner_AppendsUniqueSuffix()
+    {
+        var first = await _service.CreateAsync(new CreateProjectDto { Name = "My Project" }, OwnerId);
+        var second = await _service.CreateAsync(new CreateProjectDto { Name = "My Project" }, OwnerId);
+        var third = await _service.CreateAsync(new CreateProjectDto { Name = "My Project" }, OwnerId);
+
+        Assert.Equal("my-project", first.Slug);
+        Assert.Equal("my-project-2", second.Slug);
+        Assert.Equal("my-project-3", third.Slug);
+    }
+
+    [Fact]
+    public async Task Create_SameNameForDifferentOwners_ReusesBaseSlug()
+    {
+        var first = await _service.CreateAsync(new CreateProjectDto { Name = "My Project" }, OwnerId);
+        var second = await _service.CreateAsync(new CreateProjectDto { Name = "My Project" }, "owner-2");
+
+        Assert.Equal("my-project", first.Slug);
+        Assert.Equal("my-project", second.Slug);
+    }
+
     [Theory]
     [InlineData("Simple", "simple")]
     [InlineData("  Spaces  Around  ", "spaces-around")]
