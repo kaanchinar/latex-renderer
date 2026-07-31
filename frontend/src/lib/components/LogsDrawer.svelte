@@ -10,11 +10,49 @@
   let { open = $bindable(), onClear }: Props = $props()
 
   let logsEl: HTMLDivElement | null = $state(null)
+  let stickToBottom = $state(true)
+  let hasNew = $state(false)
+
+  const NEAR_BOTTOM_THRESHOLD = 40
+
+  function isNearBottom(): boolean {
+    if (!logsEl) return true
+    return logsEl.scrollHeight - logsEl.scrollTop - logsEl.clientHeight <= NEAR_BOTTOM_THRESHOLD
+  }
+
+  function scrollToBottom() {
+    if (logsEl) logsEl.scrollTop = logsEl.scrollHeight
+  }
+
+  function onScroll() {
+    if (isNearBottom()) {
+      stickToBottom = true
+      hasNew = false
+    } else {
+      stickToBottom = false
+    }
+  }
+
+  function jumpToBottom() {
+    stickToBottom = true
+    hasNew = false
+    scrollToBottom()
+  }
 
   $effect(() => {
     const _count = $compile.logs.length
-    if (open && logsEl) {
-      logsEl.scrollTop = logsEl.scrollHeight
+    const _status = $compile.status
+    if (!open || !logsEl) return
+
+    // Auto-open-on-failure should always snap to the latest output.
+    if (_status === 'failed') {
+      stickToBottom = true
+    }
+
+    if (stickToBottom) {
+      scrollToBottom()
+    } else {
+      hasNew = true
     }
   })
 
@@ -38,7 +76,7 @@
 </script>
 
 {#if open}
-  <div class="shrink-0 border-t border-border bg-bg-subtle flex flex-col" style="height: 100%;">
+  <div class="shrink-0 border-t border-border bg-bg-subtle flex flex-col relative" style="height: 100%;">
     <div
       class="h-6 shrink-0 flex items-center justify-between px-2 border-b border-border text-xs"
     >
@@ -78,7 +116,8 @@
     </div>
     <div
       bind:this={logsEl}
-      class="flex-1 overflow-auto p-2 font-mono text-xs text-text whitespace-pre-wrap"
+      onscroll={onScroll}
+      class="flex-1 overflow-auto p-2 font-mono text-xs text-text whitespace-pre-wrap relative"
     >
       {#if $compile.status === 'failed' && $compile.error && $compile.logs.length === 0}
         <div class="text-error">Error: {$compile.error}</div>
@@ -90,5 +129,15 @@
         {/each}
       {/if}
     </div>
+
+    {#if hasNew && !stickToBottom}
+      <button
+        type="button"
+        onclick={jumpToBottom}
+        class="absolute bottom-2 right-2 border border-border bg-bg px-2 py-1 text-xs text-text hover:bg-bg-subtle"
+      >
+        ↓ new output
+      </button>
+    {/if}
   </div>
 {/if}
