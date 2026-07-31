@@ -10,10 +10,17 @@
     drawSelection,
     rectangularSelection
   } from '@codemirror/view'
-  import { history, historyKeymap, defaultKeymap, indentWithTab } from '@codemirror/commands'
+  import {
+    history,
+    historyKeymap,
+    defaultKeymap,
+    indentWithTab,
+    undo as undoCommand,
+    redo as redoCommand
+  } from '@codemirror/commands'
   import { bracketMatching, indentUnit } from '@codemirror/language'
   import { closeBrackets, closeBracketsKeymap } from '@codemirror/autocomplete'
-  import { searchKeymap, highlightSelectionMatches } from '@codemirror/search'
+  import { searchKeymap, highlightSelectionMatches, openSearchPanel } from '@codemirror/search'
   import { linter, lintGutter, setDiagnostics, type Diagnostic } from '@codemirror/lint'
   import { latexLanguage } from './latexLanguage'
   import { latexAutocompleteExtension } from './latexCompletion'
@@ -37,6 +44,23 @@
   let mount: HTMLDivElement | null = $state(null)
   let view: EditorView | null = null
 
+  export function undo() {
+    if (view) undoCommand(view)
+  }
+
+  export function redo() {
+    if (view) redoCommand(view)
+  }
+
+  export function findInFile() {
+    if (view) openSearchPanel(view)
+  }
+
+  export function replaceInFile() {
+    // @codemirror/search does not export openReplacePanel; the search panel covers replace.
+    if (view) openSearchPanel(view)
+  }
+
   const chromeTheme = EditorView.theme(
     {
       '&': {
@@ -55,9 +79,7 @@
       '.cm-content': {
         padding: '16px 0',
         caretColor: 'var(--color-text)',
-        fontFamily: 'var(--font-mono)',
-        backgroundImage: `linear-gradient(to right, color-mix(in srgb, var(--color-border) 20%, transparent) 1px, transparent 1px)`,
-        backgroundSize: '2ch 100%'
+        fontFamily: 'var(--font-mono)'
       },
       '.cm-cursor': {
         borderLeftColor: 'var(--color-text)'

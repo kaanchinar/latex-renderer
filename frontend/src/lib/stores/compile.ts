@@ -124,11 +124,16 @@ function createCompile() {
     }
   }
 
+  function clearLogs() {
+    update((state) => ({ ...state, logs: [], error: null }))
+  }
+
   return {
     subscribe,
     start,
     stop,
-    triggerCompile
+    triggerCompile,
+    clearLogs
   }
 }
 

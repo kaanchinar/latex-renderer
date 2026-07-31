@@ -9,6 +9,9 @@
   import LogsDrawer from '../components/LogsDrawer.svelte'
   import PdfViewer from '../pdf/PdfViewer.svelte'
   import JobHistory from '../components/JobHistory.svelte'
+  import Menu from '../components/Menu.svelte'
+  import Splitter from '../components/Splitter.svelte'
+  import { toggleTheme } from '../stores/theme'
 
   type ProjectDetails = {
     id: string
@@ -20,12 +23,16 @@
   let projectError = $state<string | null>(null)
 
   let expanded = $state<Record<string, boolean>>({})
-  let showCreateInput = $state(false)
+  let showCreatePopover = $state(false)
+  let createButtonEl: HTMLButtonElement | null = $state(null)
+  let createPopoverEl: HTMLDivElement | null = $state(null)
+  let createInputEl: HTMLInputElement | null = $state(null)
   let newPath = $state('')
   let creating = $state(false)
   let createError = $state<string | null>(null)
   let deletingPath = $state<string | null>(null)
   let logsOpen = $state(false)
+  let sessionCompileRan = $state(false)
 
   let cursorLine = $state(1)
   let cursorCol = $state(1)
@@ -37,10 +44,172 @@
 
   let saveTimeout: ReturnType<typeof setTimeout> | null = null
   let savePending: { path: string; content: string } | null = null
+  let saveState = $state<'idle' | 'saving' | 'saved'>('idle')
+  let saveStateTimeout: ReturnType<typeof setTimeout> | null = null
   let compileTimeout: ReturnType<typeof setTimeout> | null = null
   let previousActivePath: string | null = null
   let selectedPdfUrl = $state<string | null>(null)
   let viewerUrl = $derived($compile.pdfUrl ?? selectedPdfUrl)
+
+  let openMenu = $state<string | null>(null)
+  let editorRef = $state<Editor | null>(null)
+  let downloadAnchor: HTMLAnchorElement | null = $state(null)
+
+  let mainEl: HTMLElement | null = $state(null)
+  let mainWidth = $state(0)
+  let sidebarCollapsed = $state(loadBool('lr-sidebar-collapsed', false))
+  let sidebarWidth = $state(loadSize('lr-sidebar', 240))
+  let editorWidth = $state(loadSize('lr-editor', 0))
+  let logsHeight = $state(loadSize('lr-logs', 160))
+
+  const SPLITTER = 6
+
+  let effectiveSidebarWidth = $derived(sidebarCollapsed ? 0 : sidebarWidth)
+  let effectiveEditorWidth = $derived(
+    editorWidth > 0 ? editorWidth : defaultEditorWidth()
+  )
+
+  let fileOpen = $derived($files.activePath !== null)
+
+  function loadSize(key: string, fallback: number): number {
+    if (typeof localStorage === 'undefined') return fallback
+    const v = localStorage.getItem(key)
+    if (!v) return fallback
+    const n = parseInt(v, 10)
+    return isNaN(n) ? fallback : n
+  }
+
+  function saveSize(key: string, value: number) {
+    if (typeof localStorage !== 'undefined') {
+      localStorage.setItem(key, String(value))
+    }
+  }
+
+  function loadBool(key: string, fallback: boolean): boolean {
+    if (typeof localStorage === 'undefined') return fallback
+    const v = localStorage.getItem(key)
+    return v === null ? fallback : v === 'true'
+  }
+
+  function saveBool(key: string, value: boolean) {
+    if (typeof localStorage !== 'undefined') {
+      localStorage.setItem(key, String(value))
+    }
+  }
+
+  function leftSplitterWidth() {
+    return sidebarCollapsed ? 0 : SPLITTER
+  }
+
+  function rightSplitterWidth() {
+    return SPLITTER
+  }
+
+  function maxSidebarWidth() {
+    const cw = mainWidth
+    if (cw <= 0) return 160
+    return Math.max(
+      160,
+      cw - leftSplitterWidth() - rightSplitterWidth() - 300 - 300
+    )
+  }
+
+  function clampSidebarWidth(w: number) {
+    return Math.max(160, Math.min(w, maxSidebarWidth()))
+  }
+
+  function maxEditorWidth() {
+    const cw = mainWidth
+    const sw = effectiveSidebarWidth
+    if (cw <= 0) return 300
+    return Math.max(
+      300,
+      cw - sw - leftSplitterWidth() - rightSplitterWidth() - 300
+    )
+  }
+
+  function clampEditorWidth(w: number) {
+    return Math.max(300, Math.min(w, maxEditorWidth()))
+  }
+
+  function defaultEditorWidth() {
+    const cw = mainWidth
+    if (cw <= 0) return 500
+    return Math.max(
+      300,
+      Math.floor(
+        (cw - effectiveSidebarWidth - leftSplitterWidth() - rightSplitterWidth()) / 2
+      )
+    )
+  }
+
+  function clampLogsHeight(h: number) {
+    const max = Math.max(120, Math.floor(window.innerHeight / 2))
+    return Math.max(120, Math.min(h, max))
+  }
+
+  function handleSidebarResize(w: number) {
+    sidebarCollapsed = false
+    sidebarWidth = clampSidebarWidth(w)
+    saveSize('lr-sidebar', sidebarWidth)
+    saveBool('lr-sidebar-collapsed', false)
+  }
+
+  function resetSidebar() {
+    sidebarCollapsed = false
+    sidebarWidth = 240
+    saveSize('lr-sidebar', 240)
+    saveBool('lr-sidebar-collapsed', false)
+  }
+
+  function handleEditorResize(w: number) {
+    editorWidth = clampEditorWidth(w)
+    saveSize('lr-editor', editorWidth)
+  }
+
+  function resetEditor() {
+    editorWidth = defaultEditorWidth()
+    saveSize('lr-editor', editorWidth)
+  }
+
+  function handleLogsResize(h: number) {
+    logsHeight = clampLogsHeight(h)
+    saveSize('lr-logs', logsHeight)
+  }
+
+  function resetLogsHeight() {
+    logsHeight = 160
+    saveSize('lr-logs', 160)
+  }
+
+  function toggleSidebar() {
+    if (sidebarCollapsed) {
+      sidebarCollapsed = false
+      if (sidebarWidth < 160) sidebarWidth = 240
+      saveBool('lr-sidebar-collapsed', false)
+    } else {
+      sidebarCollapsed = true
+      saveBool('lr-sidebar-collapsed', true)
+    }
+  }
+
+  function toggleLogs() {
+    logsOpen = !logsOpen
+  }
+
+  function setSaveState(next: 'idle' | 'saving' | 'saved') {
+    if (saveStateTimeout) {
+      clearTimeout(saveStateTimeout)
+      saveStateTimeout = null
+    }
+    saveState = next
+    if (next === 'saved') {
+      saveStateTimeout = setTimeout(() => {
+        saveState = 'idle'
+        saveStateTimeout = null
+      }, 1500)
+    }
+  }
 
   $effect(() => {
     const id = projectId
@@ -53,6 +222,7 @@
     const id = projectId
     if (!id) return
 
+    sessionCompileRan = false
     hub.joinProject(id).catch(() => {})
     compile.start(id)
 
@@ -70,6 +240,15 @@
       flushSave()
       cancelCompile()
       previousActivePath = path
+    }
+  })
+
+  $effect(() => {
+    if (
+      $compile.status === 'running' ||
+      $compile.status === 'queued'
+    ) {
+      sessionCompileRan = true
     }
   })
 
@@ -100,6 +279,31 @@
         statsTimeout = null
       }
     }
+  })
+
+  $effect(() => {
+    if (showCreatePopover && createInputEl) {
+      createInputEl.focus()
+    }
+  })
+
+  $effect(() => {
+    if (!showCreatePopover) return
+
+    function onDocClick(event: MouseEvent) {
+      const target = event.target as Node | null
+      if (!target) return
+      if (
+        createPopoverEl?.contains(target) ||
+        createButtonEl?.contains(target)
+      ) {
+        return
+      }
+      showCreatePopover = false
+    }
+
+    document.addEventListener('pointerdown', onDocClick)
+    return () => document.removeEventListener('pointerdown', onDocClick)
   })
 
   async function loadProject(id: string) {
@@ -184,7 +388,12 @@
     for (const node of nodes) {
       out.push({ ...node, depth })
       if (node.type === 'folder' && isExpanded(node.path)) {
-        out.push(...flatten((node as Extract<TreeNode, { type: 'folder' }>).children, depth + 1))
+        out.push(
+          ...flatten(
+            (node as Extract<TreeNode, { type: 'folder' }>).children,
+            depth + 1
+          )
+        )
       }
     }
 
@@ -193,23 +402,45 @@
 
   let treeNodes = $derived(flatten(buildTree($files.items)))
 
-  async function handleCreate(event: SubmitEvent) {
-    event.preventDefault()
-    const path = newPath.trim()
-    if (!path) return
+  function validatePath(value: string): string | null {
+    const trimmed = value.trim()
+    if (!trimmed) return 'Path is required.'
+    if (trimmed.startsWith('/') || trimmed.endsWith('/')) {
+      return 'No leading or trailing slashes.'
+    }
+    const name = trimmed.split('/').pop() ?? ''
+    if (!name.includes('.')) {
+      return 'File name must end in .tex or include an extension.'
+    }
+    return null
+  }
+
+  async function handleCreate() {
+    const trimmed = newPath.trim()
+    const validationError = validatePath(trimmed)
+    if (validationError) {
+      createError = validationError
+      return
+    }
 
     creating = true
     createError = null
 
     try {
-      await files.create(path)
+      await files.create(trimmed)
       newPath = ''
-      showCreateInput = false
+      showCreatePopover = false
     } catch (error) {
       createError = error instanceof Error ? error.message : 'Failed to create file.'
     } finally {
       creating = false
     }
+  }
+
+  function cancelCreate() {
+    showCreatePopover = false
+    newPath = ''
+    createError = null
   }
 
   async function handleDelete(path: string) {
@@ -234,6 +465,7 @@
     const content = $files.activeContent
     if (!id || !path) return
 
+    setSaveState('saving')
     savePending = { path, content }
     saveTimeout = setTimeout(() => {
       saveTimeout = null
@@ -248,11 +480,13 @@
     const { path, content } = savePending
     savePending = null
 
+    setSaveState('saving')
     try {
       await hub.updateFile(projectId, path, content)
       scheduleCompile()
+      setSaveState('saved')
     } catch {
-      // hub will reconnect; compile will use last saved server state
+      setSaveState('idle')
     }
   }
 
@@ -290,9 +524,67 @@
   async function handleCompile() {
     await flushSave()
     if (projectId) {
+      sessionCompileRan = true
       compile.triggerCompile(projectId)
     }
   }
+
+  function downloadCurrentPdf() {
+    if (!viewerUrl || !downloadAnchor) return
+    downloadAnchor.href = viewerUrl
+    downloadAnchor.click()
+  }
+
+  function deleteCurrentFile() {
+    const activePath = $files.activePath
+    if (!activePath) return
+    if (confirm('Delete current file?')) {
+      files.remove(activePath)
+    }
+  }
+
+  let fileMenu = $derived([
+    {
+      label: 'New file…',
+      action: () => {
+        sidebarCollapsed = false
+        showCreatePopover = true
+        createError = null
+      }
+    },
+    {
+      label: 'Delete current file',
+      disabled: !fileOpen,
+      action: deleteCurrentFile
+    },
+    {
+      label: 'Download PDF',
+      disabled: !viewerUrl,
+      action: downloadCurrentPdf
+    }
+  ])
+
+  let editMenu = $derived([
+    { label: 'Undo', shortcut: 'Ctrl+Z', disabled: !fileOpen, action: () => editorRef?.undo() },
+    { label: 'Redo', shortcut: 'Ctrl+Y', disabled: !fileOpen, action: () => editorRef?.redo() },
+    { label: 'Find in file', shortcut: 'Ctrl+F', disabled: !fileOpen, action: () => editorRef?.findInFile() },
+    { label: 'Replace', shortcut: 'Ctrl+H', disabled: !fileOpen, action: () => editorRef?.replaceInFile() }
+  ])
+
+  let viewMenu = $derived([
+    {
+      label: sidebarCollapsed ? 'Show sidebar' : 'Hide sidebar',
+      action: toggleSidebar
+    },
+    {
+      label: logsOpen ? 'Hide logs panel' : 'Show logs panel',
+      action: toggleLogs
+    },
+    {
+      label: 'Toggle theme',
+      action: toggleTheme
+    }
+  ])
 </script>
 
 <div class="flex-1 flex flex-col min-h-0">
@@ -311,232 +603,318 @@
       </div>
     </div>
   {:else}
-    <div class="h-8 shrink-0 flex items-center justify-between px-3 border-b border-border bg-bg-subtle">
-      <span class="font-semibold text-text truncate">{project?.name ?? 'Loading...'}</span>
-      <div class="flex items-center gap-3">
-        {#if $compile.status !== 'idle'}
-          <span
-            class="text-xs"
-            class:text-accent={$compile.status === 'running' || $compile.status === 'queued'}
-            class:text-success={$compile.status === 'success'}
-            class:text-error={$compile.status === 'failed'}
+    <div
+      bind:this={mainEl}
+      bind:clientWidth={mainWidth}
+      class="flex-1 flex flex-col min-h-0"
+    >
+      <!-- Menu bar -->
+      <div class="h-8 shrink-0 flex items-center justify-between px-2 border-b border-border bg-bg-subtle">
+        <div class="flex items-center gap-1">
+          <a
+            use:link
+            href="/projects"
+            class="h-8 px-3 flex items-center text-xs text-text hover:bg-bg-subtle"
           >
-            {#if $compile.status === 'running' || $compile.status === 'queued'}
-              compiling…
-            {:else if $compile.status === 'success'}
-              ✔ compiled
-            {:else if $compile.status === 'failed'}
-              ✘ failed
-            {/if}
-          </span>
-        {/if}
-        <JobHistory {projectId} onSelect={(url) => (selectedPdfUrl = url)} />
-        <button
-          type="button"
-          onclick={handleCompile}
-          disabled={$compile.status === 'running' || $compile.status === 'queued'}
-          class="border border-border bg-bg px-3 py-0.5 text-xs text-text hover:bg-bg-subtle disabled:opacity-60"
-        >
-          Compile (F6)
-        </button>
-      </div>
-    </div>
-
-    <div class="flex-1 min-h-0 flex">
-      <aside class="w-60 shrink-0 border-r border-border flex flex-col min-h-0 bg-bg">
-        <div class="h-8 shrink-0 flex items-center justify-between px-2 border-b border-border bg-bg-subtle">
-          <span class="text-xs font-medium text-text-muted uppercase tracking-wide">Files</span>
+            ← Projects
+          </a>
+          <Menu label="File" name="file" openName={openMenu} onOpen={(n) => (openMenu = n)} items={fileMenu} />
+          <Menu label="Edit" name="edit" openName={openMenu} onOpen={(n) => (openMenu = n)} items={editMenu} />
+          <Menu label="View" name="view" openName={openMenu} onOpen={(n) => (openMenu = n)} items={viewMenu} />
+        </div>
+        <div class="flex items-center gap-3">
+          {#if $compile.status !== 'idle'}
+            <span
+              data-testid="compile-status"
+              class="text-xs"
+              class:text-accent={$compile.status === 'running' || $compile.status === 'queued'}
+              class:text-success={$compile.status === 'success'}
+              class:text-error={$compile.status === 'failed'}
+            >
+              {#if $compile.status === 'running' || $compile.status === 'queued'}
+                compiling…
+              {:else if $compile.status === 'success'}
+                ✔ compiled
+              {:else if $compile.status === 'failed'}
+                ✘ failed
+              {/if}
+            </span>
+          {/if}
+          <JobHistory {projectId} onSelect={(url) => (selectedPdfUrl = url)} />
           <button
             type="button"
-            onclick={() => {
-              showCreateInput = true
-              createError = null
-            }}
-            disabled={showCreateInput}
-            class="text-sm text-accent hover:opacity-90 disabled:opacity-50"
+            data-testid="compile-button"
+            onclick={handleCompile}
+            disabled={$compile.status === 'running' || $compile.status === 'queued'}
+            class="border border-accent bg-accent px-3 py-0.5 text-xs text-white hover:opacity-90 disabled:opacity-60"
           >
-            +
+            Compile (F6)
           </button>
         </div>
-
-        {#if createError}
-          <div class="border-b border-error p-2 text-xs text-error">{createError}</div>
-        {/if}
-
-        {#if showCreateInput}
-          <form onsubmit={handleCreate} class="border-b border-border p-2">
-            <input
-              type="text"
-              bind:value={newPath}
-              placeholder="notes.tex or sections/intro.tex"
-              class="w-full border border-border bg-bg p-1 text-text focus:outline-none focus:border-accent mb-2"
-            />
-            <div class="flex gap-2">
-              <button
-                type="submit"
-                disabled={!newPath.trim() || creating}
-                class="border border-accent bg-accent px-2 py-1 text-xs text-white disabled:opacity-50"
-              >
-                Create
-              </button>
-              <button
-                type="button"
-                onclick={() => {
-                  showCreateInput = false
-                  newPath = ''
-                  createError = null
-                }}
-                class="border border-border bg-bg px-2 py-1 text-xs text-text hover:bg-bg-subtle"
-              >
-                Cancel
-              </button>
-            </div>
-          </form>
-        {/if}
-
-        <div class="flex-1 overflow-auto">
-          {#if $files.loading && $files.items.length === 0}
-            <div class="p-2 text-text-muted text-xs">Loading files...</div>
-          {:else if $files.items.length === 0}
-            <div class="p-2 text-text-muted text-xs">No files yet.</div>
-          {:else}
-            {#each treeNodes as node (node.path)}
-              <div
-                class="group flex items-center"
-                class:bg-bg-subtle={node.type === 'file' && node.path === $files.activePath}
-              >
-                <button
-                  type="button"
-                  onclick={() =>
-                    node.type === 'folder' ? toggleFolder(node.path) : selectFile(node.path)}
-                  class="flex-1 flex items-center gap-1 py-1.5 px-2 text-left text-text hover:bg-bg-subtle"
-                  style="padding-left: {node.depth * 16 + 8}px"
-                >
-                  <span class="w-3 text-text-muted text-center">
-                    {#if node.type === 'folder'}
-                      {isExpanded(node.path) ? '▾' : '▸'}
-                    {:else}
-                      &nbsp;
-                    {/if}
-                  </span>
-                  <span class="truncate">{node.name}</span>
-                </button>
-
-                {#if node.type === 'file'}
-                  <div class="shrink-0 pr-2">
-                    {#if deletingPath === node.path}
-                      <span class="text-text-muted text-xs">Delete?</span>
-                      <button
-                        type="button"
-                        onclick={(event) => {
-                          event.stopPropagation()
-                          handleDelete(node.path)
-                        }}
-                        class="ml-1 text-xs text-error hover:underline"
-                      >
-                        Yes
-                      </button>
-                      <button
-                        type="button"
-                        onclick={(event) => {
-                          event.stopPropagation()
-                          deletingPath = null
-                        }}
-                        class="ml-1 text-xs text-text-muted hover:underline"
-                      >
-                        No
-                      </button>
-                    {:else}
-                      <button
-                        type="button"
-                        onclick={(event) => {
-                          event.stopPropagation()
-                          deletingPath = node.path
-                        }}
-                        class="text-xs text-error opacity-0 group-hover:opacity-100 hover:underline"
-                      >
-                        Delete
-                      </button>
-                    {/if}
-                  </div>
-                {/if}
-              </div>
-            {/each}
-          {/if}
-        </div>
-      </aside>
-
-      <section class="flex-1 min-w-0 border-r border-border flex flex-col min-h-0 bg-bg">
-        <div class="h-8 shrink-0 flex items-center px-3 border-b border-border bg-bg-subtle text-xs text-text-muted">
-          {$files.activePath ?? 'No file selected'}
-        </div>
-        <div class="flex-1 overflow-auto">
-          {#if $files.loading && $files.activePath}
-            <div class="p-4 text-text-muted">Loading content...</div>
-          {:else if $files.activePath}
-            <Editor
-              value={$files.activeContent}
-              onChange={handleChange}
-              onSave={handleCompile}
-              errors={activeErrors}
-              onCursorChange={(line, col) => {
-                cursorLine = line
-                cursorCol = col
-              }}
-            />
-          {:else}
-            <div class="p-4 text-text-muted">Select a file to edit</div>
-          {/if}
-        </div>
-      </section>
-
-      <section class="flex-1 min-w-0 flex flex-col min-h-0 bg-bg">
-        <div class="h-8 shrink-0 flex items-center px-3 border-b border-border bg-bg-subtle text-xs text-text-muted">
-          Preview
-        </div>
-        <div class="flex-1 min-h-0 bg-bg">
-          <PdfViewer url={viewerUrl} />
-        </div>
-      </section>
-    </div>
-
-    <LogsDrawer bind:open={logsOpen} />
-
-    <div class="h-6 shrink-0 flex items-center justify-between px-2 border-t border-border bg-bg-subtle text-xs text-text-muted">
-      <div class="flex items-center gap-3">
-        <span>Ln {cursorLine}, Col {cursorCol}</span>
-        <span>{wordCount} words</span>
-        <span>{charCount} chars</span>
       </div>
-      <div class="flex items-center gap-3">
-        {#if $compile.status === 'success' && $compile.lastDurationMs != null}
-          <span class="text-success">✔ {($compile.lastDurationMs / 1000).toFixed(1)}s</span>
-        {:else if $compile.status === 'failed'}
-          <span class="text-error">✘ failed</span>
-        {/if}
-        <button
-          type="button"
-          onclick={() => (logsOpen = !logsOpen)}
-          class="hover:text-text"
+
+      <a
+        bind:this={downloadAnchor}
+        href={viewerUrl ?? undefined}
+        download={`${project?.name ?? 'document'}.pdf`}
+        class="hidden"
+        aria-hidden="true"
+      ></a>
+
+      <!-- Workspace -->
+      <div class="flex-1 min-h-0 flex">
+        <!-- Sidebar -->
+        <aside
+          class="shrink-0 flex flex-col min-h-0 bg-bg border-r border-border overflow-hidden"
+          style="width: {effectiveSidebarWidth}px"
         >
-          logs
-        </button>
-        {#if $compile.status !== 'idle'}
-          <span
-            class="text-xs"
-            class:text-accent={$compile.status === 'running' || $compile.status === 'queued'}
-            class:text-success={$compile.status === 'success'}
-            class:text-error={$compile.status === 'failed'}
-          >
-            {#if $compile.status === 'running' || $compile.status === 'queued'}
-              compiling…
-            {:else if $compile.status === 'success'}
-              ✔ compiled
-            {:else if $compile.status === 'failed'}
-              ✘ failed
+          <div class="h-8 shrink-0 flex items-center justify-between px-2 border-b border-border bg-bg-subtle relative">
+            <span class="text-xs font-medium text-text-muted uppercase tracking-wide">Files</span>
+            <button
+              type="button"
+              bind:this={createButtonEl}
+              data-testid="new-file-button"
+              onclick={() => {
+                showCreatePopover = !showCreatePopover
+                createError = null
+              }}
+              class="text-sm text-accent hover:opacity-90"
+              aria-label="New file"
+            >
+              +
+            </button>
+
+            {#if showCreatePopover}
+              <div
+                bind:this={createPopoverEl}
+                data-testid="new-file-popover"
+                class="absolute left-0 top-full mt-px w-full border border-border bg-bg p-2 z-20 flex flex-col gap-2"
+              >
+                <input
+                  type="text"
+                  bind:this={createInputEl}
+                  bind:value={newPath}
+                  data-testid="new-file-input"
+                  placeholder="notes.tex or sections/intro.tex"
+                  onkeydown={(event) => {
+                    if (event.key === 'Escape') cancelCreate()
+                  }}
+                  class="w-full border border-border bg-bg p-1 text-text focus:outline-none focus:border-accent"
+                />
+                {#if createError}
+                  <div class="text-xs text-error">{createError}</div>
+                {/if}
+                <div class="flex gap-2">
+                  <button
+                    type="button"
+                    data-testid="create-file-button"
+                    onclick={handleCreate}
+                    disabled={!newPath.trim() || creating}
+                    class="border border-accent bg-accent px-2 py-1 text-xs text-white disabled:opacity-50"
+                  >
+                    Create
+                  </button>
+                  <button
+                    type="button"
+                    onclick={cancelCreate}
+                    class="border border-border bg-bg px-2 py-1 text-xs text-text hover:bg-bg-subtle"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
             {/if}
-          </span>
+          </div>
+
+          <div class="flex-1 overflow-auto">
+            {#if $files.loading && $files.items.length === 0}
+              <div class="p-2 text-text-muted text-xs">Loading files...</div>
+            {:else if $files.items.length === 0}
+              <div class="p-2 text-text-muted text-xs">No files yet.</div>
+            {:else}
+              {#each treeNodes as node (node.path)}
+                <div
+                  class="group flex items-center"
+                  class:bg-bg-subtle={node.type === 'file' && node.path === $files.activePath}
+                >
+                  <button
+                    type="button"
+                    data-testid={node.type === 'file' ? 'file-item' : undefined}
+                    onclick={() =>
+                      node.type === 'folder' ? toggleFolder(node.path) : selectFile(node.path)}
+                    class="flex-1 flex items-center gap-1 py-1.5 px-2 text-left text-text hover:bg-bg-subtle"
+                    style="padding-left: {node.depth * 16 + 8}px"
+                  >
+                    <span class="w-3 text-text-muted text-center">
+                      {#if node.type === 'folder'}
+                        {isExpanded(node.path) ? '▾' : '▸'}
+                      {:else}
+                        &nbsp;
+                      {/if}
+                    </span>
+                    <span class="truncate">{node.name}</span>
+                  </button>
+
+                  {#if node.type === 'file'}
+                    <div class="shrink-0 pr-2">
+                      {#if deletingPath === node.path}
+                        <span class="text-text-muted text-xs">Delete?</span>
+                        <button
+                          type="button"
+                          onclick={(event) => {
+                            event.stopPropagation()
+                            handleDelete(node.path)
+                          }}
+                          class="ml-1 text-xs text-error hover:underline"
+                        >
+                          Yes
+                        </button>
+                        <button
+                          type="button"
+                          onclick={(event) => {
+                            event.stopPropagation()
+                            deletingPath = null
+                          }}
+                          class="ml-1 text-xs text-text-muted hover:underline"
+                        >
+                          No
+                        </button>
+                      {:else}
+                        <button
+                          type="button"
+                          onclick={(event) => {
+                            event.stopPropagation()
+                            deletingPath = node.path
+                          }}
+                          class="text-xs text-error opacity-0 group-hover:opacity-100 hover:underline"
+                          aria-label="Delete file"
+                        >
+                          ✕
+                        </button>
+                      {/if}
+                    </div>
+                  {/if}
+                </div>
+              {/each}
+            {/if}
+          </div>
+        </aside>
+
+        {#if !sidebarCollapsed}
+          <Splitter
+            direction="vertical"
+            value={sidebarWidth}
+            min={160}
+            max={maxSidebarWidth()}
+            onChange={handleSidebarResize}
+            onReset={resetSidebar}
+            testid="sidebar-splitter"
+          />
         {/if}
+
+        <!-- Editor + preview -->
+        <div class="flex-1 min-w-0 flex min-h-0">
+          <!-- Editor stack -->
+          <div
+            class="shrink-0 flex flex-col min-h-0 overflow-hidden"
+            style="width: {effectiveEditorWidth}px"
+          >
+            <div class="h-8 shrink-0 flex items-center justify-between px-3 border-b border-border bg-bg-subtle text-xs">
+              <span class="text-text-muted truncate">{$files.activePath ?? 'No file selected'}</span>
+              <span class="text-text-muted">
+                {#if saveState === 'saving'}saving…{:else if saveState === 'saved'}saved{/if}
+              </span>
+            </div>
+            <div class="flex-1 min-h-0 overflow-hidden">
+              {#if $files.loading && $files.activePath}
+                <div class="p-4 text-text-muted">Loading content...</div>
+              {:else if $files.activePath}
+                <Editor
+                  bind:this={editorRef}
+                  value={$files.activeContent}
+                  onChange={handleChange}
+                  onSave={handleCompile}
+                  errors={activeErrors}
+                  onCursorChange={(line, col) => {
+                    cursorLine = line
+                    cursorCol = col
+                  }}
+                />
+              {:else}
+                <div class="p-4 text-text-muted">Select a file to edit</div>
+              {/if}
+            </div>
+          </div>
+
+          <Splitter
+            direction="vertical"
+            value={effectiveEditorWidth}
+            min={300}
+            max={maxEditorWidth()}
+            onChange={handleEditorResize}
+            onReset={resetEditor}
+            testid="editor-splitter"
+          />
+
+          <!-- Preview -->
+          <div class="flex-1 min-w-0 min-h-0 flex flex-col bg-bg">
+            <PdfViewer url={viewerUrl} />
+          </div>
+        </div>
+      </div>
+
+      {#if logsOpen}
+        <Splitter
+          direction="horizontal"
+          value={logsHeight}
+          min={120}
+          max={Math.max(120, Math.floor(window.innerHeight / 2))}
+          onChange={handleLogsResize}
+          onReset={resetLogsHeight}
+          testid="logs-splitter"
+        />
+        <div style="height: {logsHeight}px">
+          <LogsDrawer bind:open={logsOpen} onClear={() => compile.clearLogs()} />
+        </div>
+      {/if}
+
+      <div class="h-6 shrink-0 flex items-center justify-between px-2 border-t border-border bg-bg-subtle text-xs text-text-muted">
+        <div class="flex items-center gap-3">
+          <span>Ln {cursorLine}, Col {cursorCol}</span>
+          <span>{wordCount} words</span>
+          <span>{charCount} chars</span>
+        </div>
+        <div class="flex items-center gap-3">
+          {#if $compile.status === 'success' && $compile.lastDurationMs != null}
+            <span class="text-success">✔ {($compile.lastDurationMs / 1000).toFixed(1)}s</span>
+          {:else if $compile.status === 'failed'}
+            <span class="text-error">✘ failed</span>
+          {/if}
+          <button
+            type="button"
+            onclick={() => (logsOpen = !logsOpen)}
+            class="hover:text-text"
+          >
+            logs
+          </button>
+          {#if $compile.status !== 'idle'}
+            <span
+              data-testid="compile-status"
+              class="text-xs"
+              class:text-accent={$compile.status === 'running' || $compile.status === 'queued'}
+              class:text-success={$compile.status === 'success'}
+              class:text-error={$compile.status === 'failed'}
+            >
+              {#if $compile.status === 'running' || $compile.status === 'queued'}
+                compiling…
+              {:else if $compile.status === 'success'}
+                ✔ compiled
+              {:else if $compile.status === 'failed'}
+                ✘ failed
+              {/if}
+            </span>
+          {/if}
+        </div>
       </div>
     </div>
   {/if}
