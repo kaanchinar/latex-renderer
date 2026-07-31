@@ -98,10 +98,14 @@
         backgroundColor: 'var(--color-bg-subtle)'
       },
       '.cm-selectionBackground': {
-        backgroundColor: 'color-mix(in srgb, var(--color-accent) 40%, transparent)'
+        backgroundColor: 'var(--color-selection)'
       },
       '.cm-focused .cm-selectionBackground': {
-        backgroundColor: 'color-mix(in srgb, var(--color-accent) 55%, transparent)'
+        backgroundColor: 'var(--color-selection)'
+      },
+      '&::selection': {
+        backgroundColor: 'var(--color-selection)',
+        color: 'var(--color-text)'
       },
       '.cm-panel': {
         backgroundColor: 'var(--color-bg-subtle)',
@@ -140,8 +144,7 @@
       '.cm-diagnostic-error': {
         color: 'var(--color-error)'
       }
-    },
-    { dark: true }
+    }
   )
 
   const syntaxTheme = EditorView.theme(
@@ -152,8 +155,7 @@
       '.cm-paren': { color: '#56b6c2' },
       '.cm-name': { color: '#e5c07b', fontWeight: 'bold' },
       '.cm-content': { color: 'var(--color-text)' }
-    },
-    { dark: true }
+    }
   )
 
   function toDiagnostics(state: EditorState, errs: LogError[]): Diagnostic[] {
