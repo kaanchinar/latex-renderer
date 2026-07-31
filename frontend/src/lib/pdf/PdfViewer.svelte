@@ -2,6 +2,7 @@
   import * as pdfjsLib from 'pdfjs-dist'
   import workerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url'
   import type { PDFDocumentProxy, PageViewport } from 'pdfjs-dist'
+  import { ChevronLeft, ChevronRight, ZoomIn, ZoomOut, Download } from '@lucide/svelte'
 
   pdfjsLib.GlobalWorkerOptions.workerSrc = workerUrl
 
@@ -160,10 +161,10 @@
         type="button"
         onclick={goPrevious}
         disabled={!pdf || pageNumber <= 1}
-        class="px-2 text-xs text-text hover:text-accent disabled:opacity-40"
+        class="px-2 text-xs text-text hover:text-accent disabled:opacity-40 flex items-center"
         aria-label="Previous page"
       >
-        ‹
+        <ChevronLeft size={14} strokeWidth={1.75} />
       </button>
       <span class="text-xs text-text min-w-[3rem] text-center">
         {pdf ? `${pageNumber} / ${pageCount}` : '—'}
@@ -172,10 +173,10 @@
         type="button"
         onclick={goNext}
         disabled={!pdf || pageNumber >= pageCount}
-        class="px-2 text-xs text-text hover:text-accent disabled:opacity-40"
+        class="px-2 text-xs text-text hover:text-accent disabled:opacity-40 flex items-center"
         aria-label="Next page"
       >
-        ›
+        <ChevronRight size={14} strokeWidth={1.75} />
       </button>
     </div>
 
@@ -184,20 +185,20 @@
         type="button"
         onclick={zoomOut}
         disabled={!pdf}
-        class="px-2 text-xs text-text hover:text-accent disabled:opacity-40"
+        class="px-2 text-xs text-text hover:text-accent disabled:opacity-40 flex items-center"
         aria-label="Zoom out"
       >
-        −
+        <ZoomOut size={14} strokeWidth={1.75} />
       </button>
       <span class="text-xs text-text min-w-[3rem] text-center">{zoomPercent}%</span>
       <button
         type="button"
         onclick={zoomIn}
         disabled={!pdf}
-        class="px-2 text-xs text-text hover:text-accent disabled:opacity-40"
+        class="px-2 text-xs text-text hover:text-accent disabled:opacity-40 flex items-center"
         aria-label="Zoom in"
       >
-        +
+        <ZoomIn size={14} strokeWidth={1.75} />
       </button>
       <button
         type="button"
@@ -214,9 +215,10 @@
       href={url ?? undefined}
       data-testid="pdf-download"
       download
-      class="text-xs text-accent hover:opacity-90 disabled:opacity-40"
+      class="text-xs text-accent hover:opacity-90 disabled:opacity-40 flex items-center gap-1"
       class:pointer-events-none={!url}
     >
+      <Download size={14} strokeWidth={1.75} />
       download
     </a>
   </div>

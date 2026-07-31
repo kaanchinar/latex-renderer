@@ -1,4 +1,6 @@
 <script lang="ts">
+  import { ChevronDown } from '@lucide/svelte'
+
   interface Item {
     label: string
     shortcut?: string
@@ -51,9 +53,10 @@
     onclick={() => onOpen(open ? null : name)}
     aria-haspopup="true"
     aria-expanded={open}
-    class="h-8 px-3 text-xs text-text hover:bg-bg-subtle"
+    class="h-8 px-3 text-xs text-text hover:bg-bg-subtle flex items-center gap-1"
   >
     {label}
+    <ChevronDown size={14} strokeWidth={1.75} />
   </button>
 
   {#if open}

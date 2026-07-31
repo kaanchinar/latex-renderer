@@ -1,5 +1,6 @@
 <script lang="ts">
   import { compile } from '../stores/compile'
+  import { X, Eraser } from '@lucide/svelte'
 
   interface Props {
     open: boolean
@@ -60,17 +61,18 @@
           type="button"
           onclick={() => onClear?.()}
           disabled={$compile.logs.length === 0}
-          class="text-xs text-text-muted hover:text-text disabled:opacity-50"
+          class="text-xs text-text-muted hover:text-text disabled:opacity-50 flex items-center gap-1"
         >
+          <Eraser size={14} strokeWidth={1.75} />
           Clear
         </button>
         <button
           type="button"
           onclick={() => (open = false)}
-          class="text-xs text-text-muted hover:text-text"
+          class="text-xs text-text-muted hover:text-text flex items-center"
           aria-label="Close logs"
         >
-          ✕
+          <X size={14} strokeWidth={1.75} />
         </button>
       </div>
     </div>

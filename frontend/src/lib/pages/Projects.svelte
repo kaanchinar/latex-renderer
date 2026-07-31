@@ -2,6 +2,7 @@
   import { onMount, tick } from 'svelte'
   import { link, navigate } from '../router'
   import { projects, type CompileStatus, type Project } from '../stores/projects'
+  import { ChevronUp, ChevronDown } from '@lucide/svelte'
 
   let showNewForm = $state(false)
   let newName = $state('')
@@ -272,7 +273,13 @@
         >
           <span>Name</span>
           {#if sortBy === 'name'}
-            <span aria-hidden="true">{sortDir === 'asc' ? '▲' : '▼'}</span>
+            <span aria-hidden="true" class="flex items-center">
+              {#if sortDir === 'asc'}
+                <ChevronUp size={14} strokeWidth={1.75} />
+              {:else}
+                <ChevronDown size={14} strokeWidth={1.75} />
+              {/if}
+            </span>
           {/if}
         </button>
         <div class="px-3 py-2">Last compile</div>
@@ -284,7 +291,13 @@
         >
           <span>Created</span>
           {#if sortBy === 'created'}
-            <span aria-hidden="true">{sortDir === 'asc' ? '▲' : '▼'}</span>
+            <span aria-hidden="true" class="flex items-center">
+              {#if sortDir === 'asc'}
+                <ChevronUp size={14} strokeWidth={1.75} />
+              {:else}
+                <ChevronDown size={14} strokeWidth={1.75} />
+              {/if}
+            </span>
           {/if}
         </button>
         <div class="px-3 py-2 text-right">Actions</div>

@@ -14,6 +14,16 @@
   import Menu from '../components/Menu.svelte'
   import Splitter from '../components/Splitter.svelte'
   import { toggleTheme } from '../stores/theme'
+  import {
+    Plus,
+    ChevronRight,
+    ChevronDown,
+    X,
+    ArrowLeft,
+    CheckCircle2,
+    XCircle,
+    Loader2
+  } from '@lucide/svelte'
 
   type ProjectDetails = {
     id: string
@@ -662,9 +672,10 @@
           <a
             use:link
             href="/projects"
-            class="h-8 px-3 flex items-center text-xs text-text hover:bg-bg-subtle"
+            class="h-8 px-3 flex items-center gap-1 text-xs text-text hover:bg-bg-subtle"
           >
-            ← Projects
+            <ArrowLeft size={14} strokeWidth={1.75} />
+            Projects
           </a>
           <Menu label="File" name="file" openName={openMenu} onOpen={(n) => (openMenu = n)} items={fileMenu} />
           <Menu label="Edit" name="edit" openName={openMenu} onOpen={(n) => (openMenu = n)} items={editMenu} />
@@ -674,18 +685,21 @@
           {#if $compile.status !== 'idle'}
             <span
               data-testid="compile-status-menubar"
-              class="text-xs"
+              class="text-xs flex items-center gap-1"
               class:text-accent={$compile.status === 'running' || $compile.status === 'queued'}
               class:text-success={$compile.status === 'success'}
               class:text-error={$compile.status === 'failed'}
               title={$compile.status === 'failed' ? ($compile.error ?? 'Compile failed') : undefined}
             >
               {#if $compile.status === 'running' || $compile.status === 'queued'}
+                <Loader2 size={14} strokeWidth={1.75} class="animate-spin" />
                 compiling…
               {:else if $compile.status === 'success'}
-                ✔ compiled
+                <CheckCircle2 size={14} strokeWidth={1.75} />
+                compiled
               {:else if $compile.status === 'failed'}
-                ✘ failed
+                <XCircle size={14} strokeWidth={1.75} />
+                failed
               {/if}
             </span>
           {/if}
@@ -727,11 +741,11 @@
                 showCreatePopover = !showCreatePopover
                 createError = null
               }}
-              class="w-8 h-8 flex items-center justify-center border border-border bg-bg text-accent hover:bg-bg-subtle text-lg leading-none"
+              class="w-8 h-8 flex items-center justify-center border border-border bg-bg text-accent hover:bg-bg-subtle leading-none"
               aria-label="New file"
               title="New file"
             >
-              +
+              <Plus size={16} strokeWidth={1.75} />
             </button>
 
             {#if showCreatePopover}
@@ -795,11 +809,13 @@
                     class="flex-1 flex items-center gap-1 py-1.5 px-2 text-left text-text hover:bg-bg-subtle"
                     style="padding-left: {node.depth * 16 + 8}px"
                   >
-                    <span class="w-3 text-text-muted text-center">
+                    <span class="w-3 text-text-muted text-center flex items-center justify-center">
                       {#if node.type === 'folder'}
-                        {isExpanded(node.path) ? '▾' : '▸'}
-                      {:else}
-                        &nbsp;
+                        {#if isExpanded(node.path)}
+                          <ChevronDown size={14} strokeWidth={1.75} />
+                        {:else}
+                          <ChevronRight size={14} strokeWidth={1.75} />
+                        {/if}
                       {/if}
                     </span>
                     <span class="truncate">{node.name}</span>
@@ -836,10 +852,10 @@
                             event.stopPropagation()
                             deletingPath = node.path
                           }}
-                          class="text-xs text-error opacity-0 group-hover:opacity-100 hover:underline"
+                          class="text-xs text-error opacity-0 group-hover:opacity-100 hover:underline flex items-center"
                           aria-label="Delete file"
                         >
-                          ✕
+                          <X size={14} strokeWidth={1.75} />
                         </button>
                       {/if}
                     </div>
@@ -939,9 +955,15 @@
         </div>
         <div class="flex items-center gap-3">
           {#if $compile.status === 'success' && $compile.lastDurationMs != null}
-            <span class="text-success">✔ {($compile.lastDurationMs / 1000).toFixed(1)}s</span>
+            <span class="text-success flex items-center gap-1">
+              <CheckCircle2 size={14} strokeWidth={1.75} />
+              {($compile.lastDurationMs / 1000).toFixed(1)}s
+            </span>
           {:else if $compile.status === 'failed'}
-            <span class="text-error" title={$compile.error ?? 'Compile failed'}>✘ failed</span>
+            <span class="text-error flex items-center gap-1" title={$compile.error ?? 'Compile failed'}>
+              <XCircle size={14} strokeWidth={1.75} />
+              failed
+            </span>
           {/if}
           <button
             type="button"
@@ -953,18 +975,21 @@
           {#if $compile.status !== 'idle'}
             <span
               data-testid="compile-status-statusbar"
-              class="text-xs"
+              class="text-xs flex items-center gap-1"
               class:text-accent={$compile.status === 'running' || $compile.status === 'queued'}
               class:text-success={$compile.status === 'success'}
               class:text-error={$compile.status === 'failed'}
               title={$compile.status === 'failed' ? ($compile.error ?? 'Compile failed') : undefined}
             >
               {#if $compile.status === 'running' || $compile.status === 'queued'}
+                <Loader2 size={14} strokeWidth={1.75} class="animate-spin" />
                 compiling…
               {:else if $compile.status === 'success'}
-                ✔ compiled
+                <CheckCircle2 size={14} strokeWidth={1.75} />
+                compiled
               {:else if $compile.status === 'failed'}
-                ✘ failed
+                <XCircle size={14} strokeWidth={1.75} />
+                failed
               {/if}
             </span>
           {/if}

@@ -7,6 +7,7 @@
   import Register from './lib/pages/Register.svelte'
   import Projects from './lib/pages/Projects.svelte'
   import ProjectWorkspace from './lib/pages/ProjectWorkspace.svelte'
+  import { LogOut } from '@lucide/svelte'
 
   const publicPaths = new Set(['/login', '/register'])
 
@@ -49,8 +50,9 @@
         <button
           type="button"
           onclick={() => auth.logout()}
-          class="text-sm text-accent hover:underline"
+          class="text-sm text-accent hover:underline flex items-center gap-1"
         >
+          <LogOut size={14} strokeWidth={1.75} />
           Logout
         </button>
       {/if}
