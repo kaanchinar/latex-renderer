@@ -30,11 +30,12 @@
 <div class="w-full max-w-[360px] border border-border bg-bg-subtle p-6">
   <h1 class="text-lg font-semibold text-text mb-4">Sign in</h1>
 
-  <form onsubmit={submit} class="space-y-4">
+  <form onsubmit={submit} class="space-y-4" data-testid="login-form">
     <div>
       <label class="block text-sm text-text-muted mb-1" for="login-email">Email</label>
       <input
         id="login-email"
+        data-testid="login-email"
         type="email"
         bind:value={email}
         required
@@ -46,6 +47,7 @@
       <label class="block text-sm text-text-muted mb-1" for="login-password">Password</label>
       <input
         id="login-password"
+        data-testid="login-password"
         type="password"
         bind:value={password}
         required
@@ -55,6 +57,7 @@
 
     <button
       type="submit"
+      data-testid="login-submit"
       disabled={loading}
       class="w-full border border-accent bg-accent text-white p-2 hover:opacity-90 disabled:opacity-50"
     >

@@ -45,3 +45,19 @@ jobs:
 
       - run: npm run build
         working-directory: frontend
+
+      - name: E2E smoke test
+        continue-on-error: true
+        run: |
+          cp .env.example .env
+          docker compose up -d --build
+          for i in $(seq 1 60); do
+            if curl -sf http://localhost:5000/health > /dev/null 2>&1; then
+              echo "Backend healthy"
+              break
+            fi
+            sleep 2
+          done
+          npx --prefix frontend playwright install --with-deps chromium
+          npm run test:e2e --prefix frontend
+          docker compose down -v

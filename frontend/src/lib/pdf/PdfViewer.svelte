@@ -69,6 +69,7 @@
       pageCount = doc.numPages
       pageNumber = 1
       baseViewport = page.getViewport({ scale: 1 })
+      loading = false
     } catch (err) {
       if (currentUrl !== url) return
       loading = false
@@ -211,6 +212,7 @@
 
     <a
       href={url ?? undefined}
+      data-testid="pdf-download"
       download
       class="text-xs text-accent hover:opacity-90 disabled:opacity-40"
       class:pointer-events-none={!url}
@@ -223,14 +225,14 @@
     {#if !url}
       <div class="self-center text-text-muted">Compile to see the PDF</div>
     {:else if loading}
-      <div class="self-center text-text-muted">Loading PDF…</div>
+      <div class="self-center text-text-muted" data-testid="pdf-loading">Loading PDF…</div>
     {:else if error}
-      <div class="self-center text-center">
+      <div class="self-center text-center" data-testid="pdf-error">
         <div class="text-error mb-1">{error}</div>
         <div class="text-xs text-text-muted">The link may have expired. Recompile to refresh.</div>
       </div>
     {:else}
-      <canvas bind:this={canvasEl} class="border border-border"></canvas>
+      <canvas bind:this={canvasEl} data-testid="pdf-canvas" class="border border-border"></canvas>
     {/if}
   </div>
 </div>
