@@ -67,7 +67,7 @@
     typeof window !== 'undefined' ? window.innerHeight : 0
   )
 
-  const SPLITTER = 6
+  const SPLITTER = 8
 
   let effectiveSidebarWidth = $derived(
     sidebarCollapsed ? 0 : clampSidebarWidth(sidebarWidth)

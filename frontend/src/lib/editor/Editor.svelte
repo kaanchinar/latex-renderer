@@ -98,10 +98,10 @@
         backgroundColor: 'var(--color-bg-subtle)'
       },
       '.cm-selectionBackground': {
-        backgroundColor: 'color-mix(in srgb, var(--color-accent) 30%, transparent)'
+        backgroundColor: 'color-mix(in srgb, var(--color-accent) 40%, transparent)'
       },
       '.cm-focused .cm-selectionBackground': {
-        backgroundColor: 'color-mix(in srgb, var(--color-accent) 40%, transparent)'
+        backgroundColor: 'color-mix(in srgb, var(--color-accent) 55%, transparent)'
       },
       '.cm-panel': {
         backgroundColor: 'var(--color-bg-subtle)',

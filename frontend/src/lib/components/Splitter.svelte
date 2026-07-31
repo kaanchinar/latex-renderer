@@ -26,6 +26,7 @@
     startPos = direction === 'vertical' ? event.clientX : event.clientY
     startValue = value
     target.setPointerCapture(event.pointerId)
+    event.preventDefault()
   }
 
   function onPointerMove(event: PointerEvent) {
@@ -38,7 +39,9 @@
   function onPointerUp(event: PointerEvent) {
     const target = event.currentTarget as HTMLDivElement
     dragging = false
-    target.releasePointerCapture(event.pointerId)
+    if (target.hasPointerCapture(event.pointerId)) {
+      target.releasePointerCapture(event.pointerId)
+    }
     onEnd?.()
   }
 </script>
@@ -49,14 +52,18 @@
     tabindex="-1"
     aria-orientation="vertical"
     data-testid={testid}
-    class="w-[6px] shrink-0 h-full cursor-col-resize group flex justify-center"
+    class="w-[8px] shrink-0 h-full cursor-col-resize group flex justify-center items-stretch"
     class:bg-bg-subtle={dragging}
     onpointerdown={onPointerDown}
     onpointermove={onPointerMove}
     onpointerup={onPointerUp}
     ondblclick={onReset}
   >
-    <div class="w-px h-full bg-border group-hover:bg-accent"></div>
+    <div
+      class="w-px h-full bg-border group-hover:bg-accent group-hover:w-[2px] transition-[background-color,width]"
+      class:bg-accent={dragging}
+      class:w-[2px]={dragging}
+    ></div>
   </div>
 {:else}
   <div
@@ -64,13 +71,17 @@
     tabindex="-1"
     aria-orientation="horizontal"
     data-testid={testid}
-    class="h-[6px] shrink-0 w-full cursor-row-resize group flex items-center"
+    class="h-[8px] shrink-0 w-full cursor-row-resize group flex items-center"
     class:bg-bg-subtle={dragging}
     onpointerdown={onPointerDown}
     onpointermove={onPointerMove}
     onpointerup={onPointerUp}
     ondblclick={onReset}
   >
-    <div class="h-px w-full bg-border group-hover:bg-accent"></div>
+    <div
+      class="h-px w-full bg-border group-hover:bg-accent group-hover:h-[2px] transition-[background-color,height]"
+      class:bg-accent={dragging}
+      class:h-[2px]={dragging}
+    ></div>
   </div>
 {/if}
