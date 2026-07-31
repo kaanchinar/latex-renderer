@@ -20,12 +20,10 @@ function createAuth() {
 
   function setLoggedIn(user: User) {
     set({ state: 'loggedIn', user })
-    navigate('/projects')
   }
 
   setLoggedOut = () => {
     set({ state: 'loggedOut', user: null })
-    navigate('/login')
   }
 
   async function initialize() {
@@ -34,7 +32,7 @@ function createAuth() {
       setLoggedIn(user)
     } catch (error) {
       if (error instanceof ApiError && error.status === 401) {
-        // apiFetch already set logged-out and navigated
+        setLoggedOut()
       } else {
         setLoggedOut()
       }
@@ -47,6 +45,7 @@ function createAuth() {
       body: { email, password }
     })
     setLoggedIn(user)
+    navigate('/projects')
   }
 
   async function register(email: string, password: string) {
@@ -55,6 +54,7 @@ function createAuth() {
       body: { email, password }
     })
     setLoggedIn(user)
+    navigate('/projects')
   }
 
   async function logout() {
@@ -65,6 +65,7 @@ function createAuth() {
     }
     await hub.disconnect().catch(() => {})
     setLoggedOut()
+    navigate('/login')
   }
 
   initialize()
