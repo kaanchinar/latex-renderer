@@ -41,7 +41,7 @@
     try {
       const created = await projects.create(name)
       closeNew()
-      navigate(`/projects/${created.id}`)
+      navigate(`/projects/${created.slug}`)
     } catch (error) {
       actionError = error instanceof Error ? error.message : 'Failed to create project.'
     } finally {
@@ -293,11 +293,11 @@
         <div
           class="group grid h-10 grid-cols-[1fr_140px_160px_180px] items-center border-b border-border text-sm last:border-b-0 cursor-pointer hover:bg-bg-subtle"
           data-testid="project-row"
-          onclick={() => navigate(`/projects/${project.id}`)}
+          onclick={() => navigate(`/projects/${project.slug}`)}
           onkeydown={(e) => {
             if (e.key === 'Enter' || e.key === ' ') {
               e.preventDefault()
-              navigate(`/projects/${project.id}`)
+              navigate(`/projects/${project.slug}`)
             }
           }}
           role="button"
@@ -398,7 +398,7 @@
                 data-testid="row-action-open"
                 onclick={(e) => {
                   e.stopPropagation()
-                  navigate(`/projects/${project.id}`)
+                  navigate(`/projects/${project.slug}`)
                 }}
                 class="invisible text-xs text-accent hover:underline group-hover:visible"
               >

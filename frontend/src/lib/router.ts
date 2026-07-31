@@ -27,7 +27,7 @@ export function navigate(to: string) {
   window.location.hash = `#${to}`
 }
 
-export function workspaceId(path: string): string | null {
+export function workspaceSlug(path: string): string | null {
   if (path === '/projects' || path === '/projects/') {
     return null
   }

@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onDestroy } from 'svelte'
-  import { path, link, workspaceId } from '../router'
+  import { path, link, workspaceSlug } from '../router'
   import { files, type ProjectFile } from '../stores/files'
   import { compile } from '../stores/compile'
   import { parseLogErrors } from '../editor/logErrors'
@@ -18,6 +18,7 @@
   type ProjectDetails = {
     id: string
     name: string
+    slug: string
   }
 
   let project = $state<ProjectDetails | null>(null)
@@ -42,7 +43,9 @@
   let charCount = $state(0)
   let statsTimeout: ReturnType<typeof setTimeout> | null = null
 
-  let projectId = $derived(workspaceId($path) ?? '')
+  let slug = $derived(workspaceSlug($path) ?? '')
+
+  let projectId = $derived(project?.id ?? '')
 
   let saveTimeout: ReturnType<typeof setTimeout> | null = null
   let savePending: { path: string; content: string } | null = null
@@ -232,9 +235,14 @@
   }
 
   $effect(() => {
+    const s = slug
+    if (!s) return
+    loadProject(s)
+  })
+
+  $effect(() => {
     const id = projectId
     if (!id) return
-    loadProject(id)
     files.load(id)
   })
 
@@ -334,19 +342,21 @@
     return () => document.removeEventListener('pointerdown', onDocClick)
   })
 
-  async function loadProject(id: string) {
+  async function loadProject(slug: string) {
     project = null
     projectError = null
     notFound = false
 
     try {
-      project = await apiFetch<ProjectDetails>(`/api/projects/${id}`)
-    } catch (error) {
-      if (error instanceof ApiError && error.status === 404) {
+      const items = await apiFetch<ProjectDetails[]>('/api/projects')
+      const match = items.find((p) => p.slug === slug)
+      if (!match) {
         notFound = true
-      } else {
-        projectError = error instanceof Error ? error.message : 'Failed to load project.'
+        return
       }
+      project = match
+    } catch (error) {
+      projectError = error instanceof Error ? error.message : 'Failed to load project.'
     }
   }
 

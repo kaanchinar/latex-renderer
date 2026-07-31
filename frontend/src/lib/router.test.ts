@@ -29,11 +29,11 @@ describe('router', () => {
     expect(value).toBe('/unknown/path')
   })
 
-  it('exposes workspace id helper', async () => {
-    const { workspaceId } = await import('./router')
-    expect(workspaceId('/projects/abc-123')).toBe('abc-123')
-    expect(workspaceId('/projects')).toBeNull()
-    expect(workspaceId('/projects/')).toBeNull()
-    expect(workspaceId('/login')).toBeNull()
+  it('exposes workspace slug helper', async () => {
+    const { workspaceSlug } = await import('./router')
+    expect(workspaceSlug('/projects/my-slug')).toBe('my-slug')
+    expect(workspaceSlug('/projects')).toBeNull()
+    expect(workspaceSlug('/projects/')).toBeNull()
+    expect(workspaceSlug('/login')).toBeNull()
   })
 })

@@ -1,6 +1,6 @@
 <script lang="ts">
   import { auth } from './lib/stores/auth'
-  import { path, navigate, workspaceId } from './lib/router'
+  import { path, navigate, workspaceSlug } from './lib/router'
   import ThemeToggle from './lib/ThemeToggle.svelte'
   import Toast from './lib/components/Toast.svelte'
   import Login from './lib/pages/Login.svelte'
@@ -10,7 +10,7 @@
 
   const publicPaths = new Set(['/login', '/register'])
 
-  let isWorkspace = $derived(!!workspaceId($path))
+  let isWorkspace = $derived(!!workspaceSlug($path))
   let isProjectsList = $derived(!isWorkspace && !publicPaths.has($path))
 
   let mainClass = $derived(
@@ -67,7 +67,7 @@
       <Register />
     {:else if $path === '/projects'}
       <Projects />
-    {:else if workspaceId($path)}
+    {:else if workspaceSlug($path)}
       <ProjectWorkspace />
     {:else}
       <Projects />
