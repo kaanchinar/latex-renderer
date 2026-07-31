@@ -28,8 +28,15 @@
   let renderTask: ReturnType<pdfjsLib.PDFPageProxy['render']> | null = null
   let zoomPercent = $derived(Math.round(scale * 100))
 
+  // The parent re-renders on every compile-store update (each log line), so
+  // the same URL is passed repeatedly. Guard against reloading the same PDF.
+  let lastUrl: string | null = null
+
   $effect(() => {
     const currentUrl = url
+    if (currentUrl === lastUrl) return
+    lastUrl = currentUrl
+
     fitted = false
     closeDocument()
     error = null
