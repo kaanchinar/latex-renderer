@@ -304,7 +304,7 @@ File content lives in object storage (`IFileStorage`); the database row holds on
 - User isolation is enforced both by middleware (authentication) and by repository query parameters (ownerId filtering).
 - LaTeX compilation is sandboxed by design:
   - Tectonic shell escape is never enabled (a test asserts the wrapper never passes the flag).
-  - Hard timeouts (default 60s, `Tectonic:TimeoutSeconds`) kill the whole process tree on expiry.
+  - Hard timeouts (default 120s, `Tectonic:TimeoutSeconds`) kill the whole process tree on expiry.
   - Per-job temporary directories are cleaned in a `finally` block; file paths are validated against traversal.
   - Generated output is verified to start with `%PDF` before it is stored or served.
   - The compile endpoint is rate-limited per user (default 5 compiles/60s, `RateLimiting:*`), returning 429.

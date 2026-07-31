@@ -13,5 +13,5 @@ public class TectonicOptions
     public string ExecutablePath { get; set; } = "tectonic";
 
     /// <summary>Hard timeout for a single compile, in seconds.</summary>
-    public int TimeoutSeconds { get; set; } = 60;
+    public int TimeoutSeconds { get; set; } = 120;
 }
